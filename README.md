@@ -14,11 +14,13 @@ Same accounts you created on Day 2.
 You can ask Claude Code to do each step with you.
 
 ### 1. Get the code
+On GitHub, click **"Use this template" → Create a new repository**, then:
 ```bash
-git clone <your-fork-of-this-repo>
+git clone https://github.com/<your-username>/internal-os-starter.git
 cd internal-os-starter
 npm install
 ```
+Template source: https://github.com/LukaLeskovsek-ZebraBI/internal-os-starter
 
 ### 2. Create a Supabase project & load the core schema
 - supabase.com → **New project** (EU region).
