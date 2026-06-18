@@ -11,9 +11,20 @@
 -- (e.g. crm_demo_*) and ship their RLS in the module's own db/ migration.
 
 -- ===========================================================================
--- is_owner(): SECURITY DEFINER so policies can check ownership WITHOUT causing
--- RLS recursion on core_profiles. Used throughout the policies below.
+-- core_profiles
 -- ===========================================================================
+create table if not exists public.core_profiles (
+  id         uuid primary key references auth.users (id) on delete cascade,
+  full_name  text,
+  role       text not null default 'member' check (role in ('owner', 'member')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.core_profiles enable row level security;
+
+-- is_owner(): SECURITY DEFINER so policies can check ownership WITHOUT causing
+-- RLS recursion on core_profiles. Defined AFTER core_profiles exists — a SQL
+-- function's body is validated at creation, so the table must already be there.
 create or replace function public.is_owner()
 returns boolean
 language sql
@@ -25,18 +36,6 @@ as $$
     where id = auth.uid() and role = 'owner'
   );
 $$;
-
--- ===========================================================================
--- core_profiles
--- ===========================================================================
-create table if not exists public.core_profiles (
-  id         uuid primary key references auth.users (id) on delete cascade,
-  full_name  text,
-  role       text not null default 'member' check (role in ('owner', 'member')),
-  created_at timestamptz not null default now()
-);
-
-alter table public.core_profiles enable row level security;
 
 create policy "core_profiles: self or owner read"
   on public.core_profiles for select
