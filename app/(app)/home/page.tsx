@@ -1,20 +1,17 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { getGrantedModuleIds } from "@/lib/access";
-import { getModule, type ModuleDef } from "@/modules/_registry";
+import { getLauncherModules } from "@/lib/access";
 import { Card } from "@/components/ui/card";
 
-// The module launcher: shows ONLY the modules this user has been granted.
+// The module launcher: shows ONLY the modules this user is granted AND that are
+// enabled, in the owner-defined order. Labels come from the catalogue (DB).
 export default async function HomePage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const grantedIds = await getGrantedModuleIds(supabase, user!.id);
-  const granted = grantedIds
-    .map(getModule)
-    .filter((m): m is ModuleDef => Boolean(m));
+  const modules = await getLauncherModules(supabase, user!.id);
 
   return (
     <div className="space-y-6">
@@ -25,13 +22,13 @@ export default async function HomePage() {
         </p>
       </div>
 
-      {granted.length > 0 ? (
+      {modules.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2">
-          {granted.map((m) => (
+          {modules.map((m) => (
             <Link key={m.id} href={`/m/${m.id}`}>
               <Card className="transition hover:border-accent">
                 <div className="text-2xl">{m.icon}</div>
-                <h2 className="mt-2 font-medium">{m.name}</h2>
+                <h2 className="mt-2 font-medium">{m.label}</h2>
                 <p className="mt-1 text-sm text-muted">{m.description}</p>
               </Card>
             </Link>

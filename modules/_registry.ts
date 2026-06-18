@@ -1,5 +1,7 @@
-// The module registry — the single list of tool-modules in this app.
-// Keep it in sync with the core_modules table (seed in supabase/migrations).
+// The module registry. Code here owns: id → component, icon, and the DEFAULT
+// name/description. The DB (core_modules) owns the live label, the enabled flag,
+// and the launcher order — all editable by owners in Admin. Keep ids in sync
+// with the core_modules rows.
 // Adding a module: add an entry here, a core_modules row, the modules/<id>/
 // folder, and a case in app/m/[module]/page.tsx. Use /scaffold-module.
 export type ModuleDef = {

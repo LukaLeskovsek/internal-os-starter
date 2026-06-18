@@ -38,9 +38,19 @@ and write in that voice. If missing, ask — don't invent.
   Use `/integrate-api`; model it on `modules/crm_demo/lib/intrix.ts`.
 - **After any change**, run `npm run lint && npm run build`, then `/check-architecture`.
 
+## Admin (owners only)
+
+`modules/admin/` manages **users** (add / role / disable / delete) and **modules**
+(enable-disable / rename / reorder), plus the access grid. User add/role/disable/delete
+use `lib/supabase/admin.ts` — a **service-role** client (`SUPABASE_SERVICE_ROLE_KEY`,
+the `sb_secret_…` key) that **bypasses RLS**, so the `isOwner` check at the top of each
+action is the security boundary. Never expose that key, never `NEXT_PUBLIC_` it, never
+import the admin client into a client component. A disabled user is blocked by the
+`(app)` guard; a disabled module is blocked by the `/m/[module]` router.
+
 ## Never modify
 
-- `app/login/`, `lib/` — auth, Supabase clients, access checks, email.
+- `app/login/`, `lib/` — auth, Supabase clients, access checks, email, the admin client.
 - `app/m/[module]/page.tsx` guard logic (add a `case`, don't change the guard).
 - Core migrations (`supabase/migrations/`) that have already run.
 - Another module's folder.

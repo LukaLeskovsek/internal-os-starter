@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getProfile } from "@/lib/access";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 
@@ -17,6 +18,12 @@ export default async function AppLayout({
 
   if (!user) {
     redirect("/login");
+  }
+
+  // A deactivated user keeps a session but can't reach any app route.
+  const profile = await getProfile(supabase, user.id);
+  if (profile?.disabled) {
+    redirect("/login?error=Your+account+has+been+disabled.");
   }
 
   return (

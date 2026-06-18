@@ -57,8 +57,8 @@ Ask Claude Code:
 > "/scaffold-module leads \"Leads\""
 
 It creates `modules/leads/`, registers it, writes a prefixed migration with RLS, and
-wires it into the router. Run its `db/` migration in Supabase, then grant yourself the
-module in **Admin**.
+wires it into the router. Claude then **runs its migration** (`npm run db:run`); grant
+yourself the module in **Admin**.
 
 ### 6. Connect an external API (optional)
 > "/integrate-api for the leads module"
@@ -73,6 +73,14 @@ mock-mode fallback).
 - Module access is **data** (`core_user_modules`), checked server-side in `app/m/[module]/page.tsx`.
 - Every module table is **prefixed** (`leads_*`) and ships **RLS** in its own migration.
 - `/check-architecture` audits all of the above. See `CLAUDE.md` and `docs/architecture.md`.
+
+## Admin — manage users & modules (owners only)
+Open **`/m/admin`** (you're the owner if you were the first to sign up):
+- **Users** — add a person (email + temporary password; no email is sent, you share it), change role (member↔owner), deactivate, or delete. A disabled user is blocked from the whole app.
+- **Modules** — turn a tool on/off (a disabled module disappears from launchers and is blocked even if granted), rename its label, and reorder it.
+- **Access** — the user × module grant grid.
+
+Adding/role/disable/delete of users runs server-side with the Supabase **secret key**, so set `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` (Supabase → Settings → API Keys → the `sb_secret_…` key). It bypasses RLS and is used only behind owner checks — never expose it or prefix it with `NEXT_PUBLIC_`.
 
 ## Scripts
 - `npm run dev` · `npm run build` · `npm run lint` · `npm start`

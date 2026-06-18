@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { userCanAccess } from "@/lib/access";
+import { userCanAccess, moduleIsEnabled } from "@/lib/access";
 import { getModule } from "@/modules/_registry";
 import { AdminModule } from "@/modules/admin/pages";
 import { CrmDemoModule } from "@/modules/crm_demo/pages";
@@ -36,6 +36,18 @@ export default async function ModuleRouter({
         <p className="mt-1 text-sm text-muted">
           You don&rsquo;t have access to &ldquo;{def.name}&rdquo;. Ask your
           workspace owner to grant it in Admin.
+        </p>
+      </Card>
+    );
+  }
+
+  // A module the owner has switched off is blocked even for granted users.
+  if (!(await moduleIsEnabled(supabase, module))) {
+    return (
+      <Card>
+        <h1 className="text-lg font-medium">Unavailable</h1>
+        <p className="mt-1 text-sm text-muted">
+          &ldquo;{def.name}&rdquo; is currently turned off by your workspace owner.
         </p>
       </Card>
     );
