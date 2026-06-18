@@ -11,13 +11,12 @@ When invoked, create a new module the rails-compliant way. Never hand-create mod
 
 ## Steps
 1. Add an entry to `modules/_registry.ts`: `{ id, name, description, icon }`.
-2. Add the catalogue row — tell the user to run in Supabase:
-   `insert into public.core_modules (id, name) values ('<id>', '<name>');`
-3. Create `modules/<id>/`:
+2. Create `modules/<id>/`:
    - `module.config.ts` — id, name, description (copy `modules/crm_demo/module.config.ts`).
    - `pages.tsx` — exports an async server component `<NameModule>`; start from the `crm_demo` shape.
-   - `db/0001_<id>.sql` — a prefixed table stub (`<id>_*`) **with RLS enabled in the same file**. Copy the commented example in `modules/crm_demo/db/0001_crm_demo.sql`.
-4. Wire it into the router: add a `case "<id>":` to the switch in `app/m/[module]/page.tsx`.
+   - `db/0001_<id>.sql` — a prefixed table stub (`<id>_*`) **with RLS in the same file**, ending with `insert into public.core_modules (id, name) values ('<id>', '<name>') on conflict (id) do nothing;` so the module registers itself. Copy `modules/crm_demo/db/0001_crm_demo.sql`.
+3. Wire it into the router: add a `case "<id>":` to the switch in `app/m/[module]/page.tsx`.
+4. **⚠️ CRITICAL — tell the user to RUN the migration in Supabase. You cannot do it for them, and the module silently fails without it.** Say: *"Open Supabase → SQL Editor → paste `modules/<id>/db/0001_<id>.sql` → Run."* It creates the prefixed, RLS-protected table **and** registers the module in the catalogue. Until it runs: no table, so the module won't appear in the launcher and can't save.
 5. Remind the owner to grant themselves the module in **Admin** (`/m/admin`).
 
 ## Rules
