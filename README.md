@@ -25,16 +25,25 @@ Template source: https://github.com/LukaLeskovsek/internal-os-starter
 ### 2. Create a Supabase project & load the core schema
 - supabase.com → **New project** (EU region).
 - Authentication → Sign In / Providers → Email → **"Confirm email" OFF**.
-- SQL Editor → paste `supabase/migrations/0001_core.sql` → **Run**. This creates the
-  three `core_*` tables and seeds the module catalogue. **The first person to sign up
-  becomes the owner** and is granted every module.
+- Copy your **Project URL** + **anon key** (Settings → API). Claude loads the core
+  schema for you in the next step — no SQL pasting. (It creates the three `core_*`
+  tables + the module catalogue; **the first person to sign up becomes the owner**,
+  granted every module.)
 
-### 3. Fill in your keys
+### 3. Fill in your keys, then let Claude load the schema
 ```bash
 cp .env.example .env.local
 ```
-Fill in Supabase + (when ready) Resend, Sentry, and Intrix. Leave `INTRIX_API_KEY`
-empty to run the demo CRM module in **mock mode**.
+Fill in your Supabase URL + anon key, plus a **Supabase access token**
+(supabase.com → Account → Access Tokens) so Claude can run your database setup.
+Add Resend/Sentry when ready; leave `INTRIX_API_KEY` empty for the demo CRM's **mock mode**.
+
+Then ask Claude: **"run the core migration."** It applies the schema for you:
+```bash
+npm run db:run -- supabase/migrations/0001_core.sql
+```
+*(No access token? The command tells you to paste the file into Supabase → SQL Editor.)*
+Every module you scaffold later works the same way — Claude runs its migration with `db:run`.
 
 ### 4. Run it
 ```bash

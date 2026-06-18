@@ -12,7 +12,7 @@ When invoked, implement **one** slice (the next one from `/plan`) inside the rep
 1. State the one slice you're doing (one sentence).
 2. **New module? Run `/scaffold-module <id> "<Name>"`** — never hand-create module folders.
 3. Make the change inside the module's own folder. Imitate `crm_demo` for list/detail and external reads.
-4. New table? It must be **prefixed** (`<moduleId>_*`) with **RLS policies in the same migration**. Never a bare or unprotected table; never read another module's tables. **Then tell the user to RUN that migration in Supabase** (SQL Editor → paste → Run) — you can't run it for them, and the module silently fails until the table exists.
+4. New table? It must be **prefixed** (`<moduleId>_*`) with **RLS policies in the same migration**. Never a bare or unprotected table; never read another module's tables. **Then run that migration** — `npm run db:run -- modules/<id>/db/<file>.sql` — and confirm the table exists. The module silently fails until it's applied. *(No token set? The command falls back to telling the user to paste it in Supabase.)*
 5. Run `npm run lint && npm run build`. If red, fix before continuing.
 6. Show the diff in plain language; commit. **Stop** — then run `/check-architecture`.
 

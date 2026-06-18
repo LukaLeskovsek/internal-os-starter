@@ -16,7 +16,11 @@ When invoked, create a new module the rails-compliant way. Never hand-create mod
    - `pages.tsx` — exports an async server component `<NameModule>`; start from the `crm_demo` shape.
    - `db/0001_<id>.sql` — a prefixed table stub (`<id>_*`) **with RLS in the same file**, ending with `insert into public.core_modules (id, name) values ('<id>', '<name>') on conflict (id) do nothing;` so the module registers itself. Copy `modules/crm_demo/db/0001_crm_demo.sql`.
 3. Wire it into the router: add a `case "<id>":` to the switch in `app/m/[module]/page.tsx`.
-4. **⚠️ CRITICAL — tell the user to RUN the migration in Supabase. You cannot do it for them, and the module silently fails without it.** Say: *"Open Supabase → SQL Editor → paste `modules/<id>/db/0001_<id>.sql` → Run."* It creates the prefixed, RLS-protected table **and** registers the module in the catalogue. Until it runs: no table, so the module won't appear in the launcher and can't save.
+4. **⚠️ CRITICAL — run the migration (don't skip it; the module silently fails without it — no table → won't appear or save).** Run it for the user:
+   ```
+   npm run db:run -- modules/<id>/db/0001_<id>.sql
+   ```
+   This applies the prefixed, RLS-protected table **and** registers the module in the catalogue. Then confirm the table exists before moving on. *(Fallback: if `SUPABASE_ACCESS_TOKEN` isn't set, the command tells the user to paste the file into Supabase → SQL Editor — but with the token set, you run it.)*
 5. Remind the owner to grant themselves the module in **Admin** (`/m/admin`).
 
 ## Rules
