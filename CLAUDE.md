@@ -45,6 +45,10 @@ and write in that voice. If missing, ask — don't invent.
 - Core migrations (`supabase/migrations/`) that have already run.
 - Another module's folder.
 
+## Your build loop (skills in `.claude/skills/`)
+
+Drive the work with these, in order: **`/plan`** (shape the idea, no code) → **`/build`** (one slice — a new tool means `/scaffold-module`) → **`/verify`** (run it, incl. the member/owner access checks, then `/check-architecture`) → **`/debug`** (only if it breaks) → **`/ship`** (go live and confirm the public URL). The architecture skills (`/scaffold-module`, `/check-architecture`, `/integrate-api`) are used along the way. Day 3 reveals Compound Engineering (`/ce-plan` …) as the graduation.
+
 ## Build/run
 - `npm run dev` · `npm run lint && npm run build` (must pass).
 - A Supabase Edge Runtime warning on build (`process.version`) is expected and harmless.
