@@ -20,7 +20,7 @@ git clone https://github.com/<your-username>/internal-os-starter.git
 cd internal-os-starter
 npm install
 ```
-Template source: https://github.com/LukaLeskovsek-ZebraBI/internal-os-starter
+Template source: https://github.com/LukaLeskovsek/internal-os-starter
 
 ### 2. Create a Supabase project & load the core schema
 - supabase.com → **New project** (EU region).
