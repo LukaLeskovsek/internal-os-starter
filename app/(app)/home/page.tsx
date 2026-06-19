@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getLauncherModules } from "@/lib/access";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 // The module launcher: shows ONLY the modules this user is granted AND that are
 // enabled, in the owner-defined order. Labels come from the catalogue (DB).
@@ -16,8 +16,8 @@ export default async function HomePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Your tools</h1>
-        <p className="mt-1 text-muted">
+        <h1 className="text-2xl font-semibold tracking-tight">Your tools</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Only the modules you&rsquo;ve been granted appear here.
         </p>
       </div>
@@ -25,19 +25,26 @@ export default async function HomePage() {
       {modules.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {modules.map((m) => (
-            <Link key={m.id} href={`/m/${m.id}`}>
-              <Card className="transition hover:border-accent">
-                <div className="text-2xl">{m.icon}</div>
-                <h2 className="mt-2 font-medium">{m.label}</h2>
-                <p className="mt-1 text-sm text-muted">{m.description}</p>
+            <Link key={m.id} href={`/m/${m.id}`} className="group block">
+              <Card
+                size="sm"
+                className="h-full transition group-hover:ring-foreground/25 group-hover:shadow-sm"
+              >
+                <CardContent className="space-y-1">
+                  <div className="text-2xl">{m.icon}</div>
+                  <div className="font-medium">{m.label}</div>
+                  <p className="text-sm text-muted-foreground">{m.description}</p>
+                </CardContent>
               </Card>
             </Link>
           ))}
         </div>
       ) : (
-        <p className="text-sm text-muted">
-          No modules yet. Ask your workspace owner to grant you access.
-        </p>
+        <Card>
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            No modules yet. Ask your workspace owner to grant you access.
+          </CardContent>
+        </Card>
       )}
     </div>
   );

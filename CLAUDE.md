@@ -59,6 +59,15 @@ import the admin client into a client component. A disabled user is blocked by t
 
 Drive the work with these, in order: **`/plan`** (shape the idea, no code) → **`/build`** (one slice — a new tool means `/scaffold-module`) → **`/verify`** (run it, incl. the member/owner access checks, then `/check-architecture`) → **`/debug`** (only if it breaks) → **`/ship`** (go live and confirm the public URL). The architecture skills (`/scaffold-module`, `/check-architecture`, `/integrate-api`) are used along the way. Day 3 reveals Compound Engineering (`/ce-plan` …) as the graduation.
 
+## Design system (shadcn/ui)
+
+The UI is shadcn/ui (Base UI + Tailwind v4) in a premium-neutral style. Rebrand via the
+tokens at the top of `app/globals.css` (`--primary`, `--radius`) — not component files.
+**Every Server Action form submits with `<SubmitButton>`** (`components/ui/submit-button.tsx`),
+which shows a spinner and disables while pending (no double-submit). Action results surface
+as toasts via `?ok=` / `?error=`. All signed-in pages live under `app/(app)/` so they inherit
+the padded shell + header — keep new app pages there. Match these patterns for new UI.
+
 ## Build/run
 - `npm run dev` · `npm run lint && npm run build` (must pass).
 - A Supabase Edge Runtime warning on build (`process.version`) is expected and harmless.

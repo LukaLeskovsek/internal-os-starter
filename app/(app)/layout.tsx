@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile } from "@/lib/access";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { ToastFromParams } from "@/components/toast-from-params";
 
 // Auth guard for the whole signed-in area. DONE — do not modify.
 // MODULE access is enforced separately, per request, in app/m/[module]/page.tsx.
@@ -33,6 +35,9 @@ export default async function AppLayout({
         {children}
       </main>
       <Footer />
+      <Suspense>
+        <ToastFromParams />
+      </Suspense>
     </div>
   );
 }

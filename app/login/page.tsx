@@ -1,8 +1,15 @@
 import Link from "next/link";
 import { signIn, signUp } from "./actions";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 // DONE — do not modify this flow. Password sign-in/sign-up via Server Actions.
 export default async function LoginPage({
@@ -14,78 +21,76 @@ export default async function LoginPage({
   const isSignup = mode === "signup";
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6">
-      <Card>
-        <h1 className="text-2xl font-semibold">
-          {isSignup ? "Create your account" : "Sign in"}
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          {isSignup ? "Use your email and a password." : "Welcome back."}
-        </p>
-
-        {error ? (
-          <p className="mt-4 rounded-md border border-border p-3 text-sm text-red-600">
-            {error}
-          </p>
-        ) : null}
-
-        <form action={isSignup ? signUp : signIn} className="mt-6 space-y-4">
-          {isSignup ? (
-            <div>
-              <label className="mb-1 block text-sm" htmlFor="full_name">
-                Name
-              </label>
-              <Input id="full_name" name="full_name" type="text" autoComplete="name" />
-            </div>
-          ) : null}
-          <div>
-            <label className="mb-1 block text-sm" htmlFor="email">
-              Email
-            </label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm" htmlFor="password">
-              Password
-            </label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              minLength={6}
-              autoComplete={isSignup ? "new-password" : "current-password"}
-            />
-          </div>
-          <Button type="submit" className="w-full">
-            {isSignup ? "Create account" : "Sign in"}
-          </Button>
-        </form>
-
-        <p className="mt-4 text-center text-sm text-muted">
+    <main className="flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="w-full max-w-sm">
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle className="text-xl tracking-tight">
+              {isSignup ? "Create your account" : "Welcome back"}
+            </CardTitle>
+            <CardDescription>
+              {isSignup ? "Use your email and a password." : "Sign in to continue."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {error ? (
+              <p
+                role="alert"
+                className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              >
+                {error}
+              </p>
+            ) : null}
+            <form action={isSignup ? signUp : signIn} className="space-y-4">
+              {isSignup ? (
+                <div className="space-y-1.5">
+                  <Label htmlFor="full_name">Name</Label>
+                  <Input id="full_name" name="full_name" autoComplete="name" />
+                </div>
+              ) : null}
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" name="email" type="email" required autoComplete="email" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete={isSignup ? "new-password" : "current-password"}
+                />
+              </div>
+              <SubmitButton
+                size="lg"
+                className="w-full"
+                pendingText={isSignup ? "Creating…" : "Signing in…"}
+              >
+                {isSignup ? "Create account" : "Sign in"}
+              </SubmitButton>
+            </form>
+          </CardContent>
+        </Card>
+        <p className="mt-6 text-center text-sm text-muted-foreground">
           {isSignup ? (
             <>
               Already have an account?{" "}
-              <Link className="text-accent" href="/login">
+              <Link className="font-medium text-foreground underline-offset-4 hover:underline" href="/login">
                 Sign in
               </Link>
             </>
           ) : (
             <>
               New here?{" "}
-              <Link className="text-accent" href="/login?mode=signup">
+              <Link className="font-medium text-foreground underline-offset-4 hover:underline" href="/login?mode=signup">
                 Create an account
               </Link>
             </>
           )}
         </p>
-      </Card>
+      </div>
     </main>
   );
 }

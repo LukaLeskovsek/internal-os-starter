@@ -4,7 +4,12 @@ import { userCanAccess, moduleIsEnabled } from "@/lib/access";
 import { getModule } from "@/modules/_registry";
 import { AdminModule } from "@/modules/admin/pages";
 import { CrmDemoModule } from "@/modules/crm_demo/pages";
-import { Card } from "@/components/ui/card";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 // The single module router. One guard, one place: access is enforced HERE,
 // server-side, on every request — a member cannot reach a module by URL.
@@ -32,11 +37,13 @@ export default async function ModuleRouter({
   if (!allowed) {
     return (
       <Card>
-        <h1 className="text-lg font-medium">No access</h1>
-        <p className="mt-1 text-sm text-muted">
-          You don&rsquo;t have access to &ldquo;{def.name}&rdquo;. Ask your
-          workspace owner to grant it in Admin.
-        </p>
+        <CardHeader>
+          <CardTitle>No access</CardTitle>
+          <CardDescription>
+            You don&rsquo;t have access to &ldquo;{def.name}&rdquo;. Ask your
+            workspace owner to grant it in Admin.
+          </CardDescription>
+        </CardHeader>
       </Card>
     );
   }
@@ -45,10 +52,12 @@ export default async function ModuleRouter({
   if (!(await moduleIsEnabled(supabase, module))) {
     return (
       <Card>
-        <h1 className="text-lg font-medium">Unavailable</h1>
-        <p className="mt-1 text-sm text-muted">
-          &ldquo;{def.name}&rdquo; is currently turned off by your workspace owner.
-        </p>
+        <CardHeader>
+          <CardTitle>Unavailable</CardTitle>
+          <CardDescription>
+            &ldquo;{def.name}&rdquo; is currently turned off by your workspace owner.
+          </CardDescription>
+        </CardHeader>
       </Card>
     );
   }
