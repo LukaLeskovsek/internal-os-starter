@@ -24,6 +24,12 @@ export const MODULES: ModuleDef[] = [
     description: "Contacts pulled from Intrix — read-only.",
     icon: "📇",
   },
+  {
+    id: "ai_assist",
+    name: "AI Assistant",
+    description: "Ask a question; AI answers and the Q&A is saved.",
+    icon: "🤖",
+  },
 ];
 
 export function getModule(id: string): ModuleDef | undefined {

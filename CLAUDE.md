@@ -36,6 +36,10 @@ and write in that voice. If missing, ask — don't invent.
 - **External APIs: server-side only, key from `process.env`. Read before write** —
   a write call back to an external API needs explicit owner approval in the spec.
   Use `/integrate-api`; model it on `modules/crm_demo/lib/intrix.ts`.
+- **AI in a module: server-side, through `lib/ai.ts`.** Never call an LLM from a
+  client component or expose `OPENROUTER_API_KEY`. Store AI output in the module's
+  own prefixed, RLS-scoped table; read only this module's data. Use `/integrate-ai`;
+  model it on the `ai_assist` module.
 - **After any change**, run `npm run lint && npm run build`, then `/check-architecture`.
 
 ## Admin (owners only)
@@ -50,14 +54,14 @@ import the admin client into a client component. A disabled user is blocked by t
 
 ## Never modify
 
-- `app/login/`, `lib/` — auth, Supabase clients, access checks, email, the admin client.
+- `app/login/`, `lib/` — auth, Supabase clients, access checks, email, the admin client, the AI client (`lib/ai.ts` — call `generate()`, don't rewrite the wiring).
 - `app/m/[module]/page.tsx` guard logic (add a `case`, don't change the guard).
 - Core migrations (`supabase/migrations/`) that have already run.
 - Another module's folder.
 
 ## Your build loop (skills in `.claude/skills/`)
 
-Drive the work with these, in order: **`/plan`** (shape the idea, no code) → **`/build`** (one slice — a new tool means `/scaffold-module`) → **`/verify`** (run it, incl. the member/owner access checks, then `/check-architecture`) → **`/debug`** (only if it breaks) → **`/ship`** (go live and confirm the public URL). The architecture skills (`/scaffold-module`, `/check-architecture`, `/integrate-api`) are used along the way. Day 3 reveals Compound Engineering (`/ce-plan` …) as the graduation.
+Drive the work with these, in order: **`/plan`** (ideate + shape the idea, no code) → **`/build`** (one slice — a new tool means `/scaffold-module`) → **`/verify`** (run it, incl. the member/owner access checks, then `/check-architecture`) → **`/debug`** (only if it breaks) → **`/ship`** (go live and confirm the public URL). The architecture skills (`/scaffold-module`, `/check-architecture`, `/integrate-api`, **`/integrate-ai`** for an LLM feature) are used along the way. Day 3 reveals Compound Engineering (`/ce-plan` …) as the graduation.
 
 ## Design system (shadcn/ui)
 

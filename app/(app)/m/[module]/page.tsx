@@ -4,6 +4,7 @@ import { userCanAccess, moduleIsEnabled } from "@/lib/access";
 import { getModule } from "@/modules/_registry";
 import { AdminModule } from "@/modules/admin/pages";
 import { CrmDemoModule } from "@/modules/crm_demo/pages";
+import { AiAssistModule } from "@/modules/ai_assist/pages";
 import {
   Card,
   CardDescription,
@@ -67,6 +68,8 @@ export default async function ModuleRouter({
       return <AdminModule />;
     case "crm_demo":
       return <CrmDemoModule selectedId={id} />;
+    case "ai_assist":
+      return <AiAssistModule />;
     default:
       notFound();
   }
