@@ -13,14 +13,16 @@ Same accounts you created on Day 2.
 
 You can ask Claude Code to do each step with you.
 
-### 1. Get the code
-On GitHub, click **"Use this template" → Create a new repository**, then:
+### 1. Get the code — your own repo
+On GitHub, click **"Use this template" → Create a new repository** and set it
+**Private** (your own copy to push to — it holds your app *and its history*), then:
 ```bash
 git clone https://github.com/<your-username>/internal-os-starter.git
 cd internal-os-starter
 npm install
 ```
 Template source: https://github.com/LukaLeskovsek/internal-os-starter
+New to git? Three safe verbs and one rule: [docs/git-basics.md](docs/git-basics.md).
 
 ### 2. Create a Supabase project & load the core schema
 - supabase.com → **New project** (EU region).

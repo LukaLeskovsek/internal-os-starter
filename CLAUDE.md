@@ -41,6 +41,9 @@ and write in that voice. If missing, ask — don't invent.
   own prefixed, RLS-scoped table; read only this module's data. Use `/integrate-ai`;
   model it on the `ai_assist` module.
 - **After any change**, run `npm run lint && npm run build`, then `/check-architecture`.
+- **Undo via `git revert`, never `git reset --hard` or `git push --force`.** If a change
+  broke a working state, revert to the last good commit and re-verify. The history is the
+  safety net — keep it intact.
 
 ## Admin (owners only)
 
@@ -62,6 +65,17 @@ import the admin client into a client component. A disabled user is blocked by t
 ## Your build loop (skills in `.claude/skills/`)
 
 Drive the work with these, in order: **`/plan`** (ideate + shape the idea, no code) → **`/build`** (one slice — a new tool means `/scaffold-module`) → **`/verify`** (run it, incl. the member/owner access checks, then `/check-architecture`) → **`/debug`** (only if it breaks) → **`/ship`** (go live and confirm the public URL). The architecture skills (`/scaffold-module`, `/check-architecture`, `/integrate-api`, **`/integrate-ai`** for an LLM feature) are used along the way. Day 3 reveals Compound Engineering (`/ce-plan` …) as the graduation.
+
+## Workflow mode — pull requests OFF
+
+**Pull requests: OFF** — solo founder, trunk-based.
+
+While OFF:
+- `/build` commits; `/ship` pushes straight to `main` (push = deploy).
+- A risky change may use a short-lived branch for a preview URL, then **merge into `main` locally** (`git checkout main && git merge <branch> && git push`). **Never open a pull request while this is OFF.**
+- Undo with `git revert`; never `git reset --hard` or `git push --force`.
+
+To turn pull requests ON (a teammate joins, or you want review before deploy), change the line above to `Pull requests: ON` and see `docs/workflow-mode.md`. When ON, `/ship` opens a PR (`gh pr create`) and merges when checks pass.
 
 ## Design system (shadcn/ui)
 

@@ -20,3 +20,6 @@ When invoked, work the problem methodically. The enemy is guessing and changing 
 - **Two failed attempts → STOP and reset:** restate the current state, the goal, and the problem; shrink to the smallest next step; try again. Don't spiral.
 - Never disable a safety rail (RLS, auth, env-only secrets) just to "make it work."
 - Paste the *actual* error to reason from — never debug from a remembered description.
+- **If a change made it *worse* than a working state, go back — don't dig forward.**
+  `git revert` to the last good commit (it adds a new commit that restores the working
+  state; never `git reset --hard` or `git push --force`), then re-verify from there.

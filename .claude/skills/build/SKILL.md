@@ -20,4 +20,5 @@ When invoked, implement **one** slice (the next one from `/plan`) inside the rep
 - Never modify `app/login/`, `lib/`, the `/m/[module]` guard, core migrations, or another module's folder.
 - External API keys come from `process.env` only — read before write (a write needs explicit owner approval).
 - Keep the tree green: lint + build pass before commit.
+- **Commit only — never push or open a pull request.** Going live is `/ship`'s job; pull requests stay OFF unless `CLAUDE.md` Workflow mode says ON.
 - After building, suggest: *"`/check-architecture`, then `/verify`."*
