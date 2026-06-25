@@ -89,15 +89,18 @@ export async function uploadInvoice(formData: FormData) {
   redirect(`${BASE}?ok=1`);
 }
 
-const StatusSchema = z.object({
+// Liquidation happens on the detail / review screen. Two actions (approve / reject)
+// share one form via formAction; both carry the invoice id + the optional comment.
+const LiquidateSchema = z.object({
   id: z.string().regex(/^[0-9a-fA-F-]{36}$/, "Neveljaven ID"),
-  status: z.enum(["approved", "rejected"]),
+  comment: z.string().max(2000, "Komentar je predolg (največ 2000 znakov).").optional(),
 });
 
-export async function setInvoiceStatus(formData: FormData) {
-  const parsed = StatusSchema.safeParse({
+async function liquidate(status: "approved" | "rejected", formData: FormData) {
+  const rawComment = formData.get("comment");
+  const parsed = LiquidateSchema.safeParse({
     id: formData.get("id"),
-    status: formData.get("status"),
+    comment: rawComment === null ? undefined : String(rawComment),
   });
   if (!parsed.success) fail(parsed.error.issues[0]!.message);
 
@@ -111,10 +114,23 @@ export async function setInvoiceStatus(formData: FormData) {
   // RLS guarantees a user can only update their OWN invoice rows.
   const { error } = await supabase
     .from("invoice_ocr_invoices")
-    .update({ status: parsed.data.status, reviewed_at: new Date().toISOString() })
+    .update({
+      status,
+      comment: parsed.data.comment ?? null,
+      reviewed_at: new Date().toISOString(),
+    })
     .eq("id", parsed.data.id);
   if (error) fail(error.message);
 
   revalidatePath(BASE);
-  redirect(`${BASE}?ok=1`);
+  // Back to the review screen so the new status + comment show in place.
+  redirect(`${BASE}?id=${parsed.data.id}&ok=1`);
+}
+
+export async function approveInvoice(formData: FormData) {
+  await liquidate("approved", formData);
+}
+
+export async function rejectInvoice(formData: FormData) {
+  await liquidate("rejected", formData);
 }

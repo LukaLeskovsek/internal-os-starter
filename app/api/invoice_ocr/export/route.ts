@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   const { data } = await supabase
     .from("invoice_ocr_invoices")
     .select(
-      "vendor, invoice_number, issue_date, due_date, currency, net_amount, tax_amount, total_amount, status, created_at",
+      "vendor, invoice_number, issue_date, due_date, currency, net_amount, tax_amount, total_amount, status, comment, created_at",
     )
     .order("created_at", { ascending: false });
   const rows = data ?? [];
@@ -39,6 +39,7 @@ export async function GET(request: Request) {
     "DDV",
     "Skupaj",
     "Status",
+    "Komentar",
     "Naloženo",
   ];
   const body = rows.map((r) => [
@@ -51,6 +52,7 @@ export async function GET(request: Request) {
     r.tax_amount,
     r.total_amount,
     r.status,
+    r.comment,
     r.created_at,
   ]);
 

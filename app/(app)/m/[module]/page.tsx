@@ -72,7 +72,7 @@ export default async function ModuleRouter({
     case "ai_assist":
       return <AiAssistModule />;
     case "invoice_ocr":
-      return <InvoiceOcrModule />;
+      return <InvoiceOcrModule selectedId={id} />;
     default:
       notFound();
   }

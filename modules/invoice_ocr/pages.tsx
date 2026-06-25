@@ -1,6 +1,8 @@
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { aiConfigured } from "@/lib/ai";
-import { uploadInvoice, setInvoiceStatus } from "./actions";
+import { uploadInvoice, approveInvoice, rejectInvoice } from "./actions";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -15,9 +17,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+type Status = "pending" | "approved" | "rejected";
+
 type Invoice = {
   id: string;
   file_path: string;
+  file_mime: string;
   vendor: string | null;
   invoice_number: string | null;
   issue_date: string | null;
@@ -26,14 +31,18 @@ type Invoice = {
   net_amount: number | null;
   tax_amount: number | null;
   total_amount: number | null;
-  status: "pending" | "approved" | "rejected";
+  status: Status;
   extracted_mock: boolean;
   reviewed_at: string | null;
+  comment: string | null;
 };
+
+const SELECT_COLS =
+  "id, file_path, file_mime, vendor, invoice_number, issue_date, due_date, currency, net_amount, tax_amount, total_amount, status, extracted_mock, reviewed_at, comment";
 
 // The liquidation states, with Slovenian labels + a badge colour each.
 const STATUS: Record<
-  Invoice["status"],
+  Status,
   { label: string; variant: "secondary" | "default" | "destructive" }
 > = {
   pending: { label: "Čaka na likvidacijo", variant: "secondary" },
@@ -50,16 +59,19 @@ function money(v: number | null, currency: string | null): string {
   return currency ? `${n} ${currency}` : n;
 }
 
-// AI OCR + liquidation. Upload an invoice → the model reads it (modules/invoice_ocr/
-// lib/ocr.ts) → a row in the prefixed, RLS-scoped table → approve/reject → export CSV.
-export async function InvoiceOcrModule() {
+// Module entry: the list, or a single-invoice review screen when ?id= is set
+// (the module router passes selectedId, same as crm_demo).
+export async function InvoiceOcrModule({ selectedId }: { selectedId?: string }) {
+  return selectedId ? <InvoiceDetail id={selectedId} /> : <InvoiceList />;
+}
+
+// ---------------------------------------------------------------- list view
+async function InvoiceList() {
   const supabase = await createClient();
   // RLS scopes invoice_ocr_invoices to the signed-in user.
   const { data } = await supabase
     .from("invoice_ocr_invoices")
-    .select(
-      "id, file_path, vendor, invoice_number, issue_date, due_date, currency, net_amount, tax_amount, total_amount, status, extracted_mock, reviewed_at",
-    )
+    .select(SELECT_COLS)
     .order("created_at", { ascending: false });
   const invoices = (data ?? []) as Invoice[];
 
@@ -83,8 +95,8 @@ export async function InvoiceOcrModule() {
           {aiConfigured() ? null : <Badge variant="secondary">mock način</Badge>}
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          Naloži račun (slika ali PDF). AI prebere podatke (OCR), ti pa jih potrdiš ali
-          zavrneš za plačilo — in po potrebi izvoziš v CSV.
+          Naloži račun (slika ali PDF). AI prebere podatke (OCR); odpri{" "}
+          <strong>Preglej</strong> za predogled in likvidacijo s komentarjem — ali izvozi v CSV.
         </p>
       </div>
 
@@ -142,7 +154,7 @@ export async function InvoiceOcrModule() {
                   <TableHead className="text-right">Skupaj</TableHead>
                   <TableHead>Original</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Likvidacija</TableHead>
+                  <TableHead className="text-right">Pregled</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -189,26 +201,12 @@ export async function InvoiceOcrModule() {
                         <Badge variant={st.variant}>{st.label}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        {inv.status === "pending" ? (
-                          <div className="flex justify-end gap-2">
-                            <form action={setInvoiceStatus}>
-                              <input type="hidden" name="id" value={inv.id} />
-                              <input type="hidden" name="status" value="approved" />
-                              <SubmitButton size="sm" pendingText="…">
-                                Potrdi
-                              </SubmitButton>
-                            </form>
-                            <form action={setInvoiceStatus}>
-                              <input type="hidden" name="id" value={inv.id} />
-                              <input type="hidden" name="status" value="rejected" />
-                              <SubmitButton size="sm" variant="outline" pendingText="…">
-                                Zavrni
-                              </SubmitButton>
-                            </form>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">pregledano</span>
-                        )}
+                        <Link
+                          href={`/m/invoice_ocr?id=${inv.id}`}
+                          className={buttonVariants({ variant: "outline", size: "sm" })}
+                        >
+                          Preglej
+                        </Link>
                       </TableCell>
                     </TableRow>
                   );
@@ -224,6 +222,167 @@ export async function InvoiceOcrModule() {
           </Card>
         )}
       </div>
+    </div>
+  );
+}
+
+// -------------------------------------------------------------- detail view
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-sm">{value}</div>
+    </div>
+  );
+}
+
+function BackLink() {
+  return (
+    <Link
+      href="/m/invoice_ocr"
+      className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <ArrowLeft className="size-4" /> Nazaj na seznam
+    </Link>
+  );
+}
+
+async function InvoiceDetail({ id }: { id: string }) {
+  const supabase = await createClient();
+  // RLS scopes this to the signed-in user — a wrong/foreign id returns null.
+  const { data } = await supabase
+    .from("invoice_ocr_invoices")
+    .select(SELECT_COLS)
+    .eq("id", id)
+    .maybeSingle();
+  const inv = data as Invoice | null;
+
+  if (!inv) {
+    return (
+      <div className="space-y-5">
+        <BackLink />
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            Račun ni najden.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const { data: signed } = await supabase.storage
+    .from("invoice_ocr")
+    .createSignedUrl(inv.file_path, 3600);
+  const url = signed?.signedUrl;
+  const st = STATUS[inv.status] ?? STATUS.pending;
+  const isImage = inv.file_mime.startsWith("image/");
+
+  return (
+    <div className="space-y-5">
+      <BackLink />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <h1 className="text-2xl font-semibold tracking-tight">{inv.vendor ?? "Račun"}</h1>
+        <Badge variant={st.variant}>{st.label}</Badge>
+        {inv.extracted_mock ? <Badge variant="secondary">mock</Badge> : null}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Podatki računa (OCR)</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            <Field label="Dobavitelj" value={inv.vendor ?? "—"} />
+            <Field label="Št. računa" value={inv.invoice_number ?? "—"} />
+            <Field label="Izdan" value={inv.issue_date ?? "—"} />
+            <Field label="Zapadlost" value={inv.due_date ?? "—"} />
+            <Field label="Valuta" value={inv.currency ?? "—"} />
+            <Field label="Neto" value={money(inv.net_amount, inv.currency)} />
+            <Field label="DDV" value={money(inv.tax_amount, inv.currency)} />
+            <Field label="Skupaj" value={money(inv.total_amount, inv.currency)} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Original</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {url ? (
+              isImage ? (
+                // Signed URL to a private object; plain <img> avoids next/image remote config.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={url}
+                  alt="Račun"
+                  className="max-h-[70vh] w-full rounded-lg border object-contain"
+                />
+              ) : (
+                <iframe
+                  src={url}
+                  title="Račun (PDF)"
+                  className="h-[70vh] w-full rounded-lg border"
+                />
+              )
+            ) : (
+              <p className="text-sm text-muted-foreground">Predogled ni na voljo.</p>
+            )}
+            {url ? (
+              <a
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-block text-sm text-primary underline-offset-4 hover:underline"
+              >
+                Odpri v novem zavihku
+              </a>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Likvidacija</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {inv.status !== "pending" ? (
+            <p className="text-sm text-muted-foreground">
+              Trenutni status:{" "}
+              <span className="font-medium text-foreground">{st.label}</span>
+              {inv.reviewed_at ? " · pregledano" : ""}. Spodaj lahko odločitev spremeniš.
+            </p>
+          ) : null}
+          {/* One form, shared comment + id. Likvidiraj uses the form action; Zavrni
+              overrides it via formAction — robust regardless of button value forwarding. */}
+          <form action={approveInvoice} className="space-y-3">
+            <input type="hidden" name="id" value={inv.id} />
+            <div className="space-y-1.5">
+              <Label htmlFor="comment">Komentar (neobvezno)</Label>
+              <textarea
+                id="comment"
+                name="comment"
+                rows={3}
+                maxLength={2000}
+                defaultValue={inv.comment ?? ""}
+                placeholder="npr. ujema se z naročilnico #123; potrjeno za plačilo."
+                className="flex w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              />
+            </div>
+            <div className="flex gap-2">
+              <SubmitButton pendingText="Shranjujem…">Likvidiraj</SubmitButton>
+              <SubmitButton
+                formAction={rejectInvoice}
+                variant="outline"
+                pendingText="Shranjujem…"
+              >
+                Zavrni
+              </SubmitButton>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
