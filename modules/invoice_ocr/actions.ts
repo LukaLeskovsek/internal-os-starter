@@ -9,7 +9,12 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { userCanAccess } from "@/lib/access";
-import { extractInvoice, emptyInvoiceFields, type InvoiceFields } from "./lib/ocr";
+import {
+  extractInvoice,
+  emptyInvoiceFields,
+  type InvoiceFields,
+  type LineItem,
+} from "./lib/ocr";
 
 const MODULE = "invoice_ocr";
 const BASE = `/m/${MODULE}`;
@@ -49,8 +54,14 @@ export async function uploadInvoice(formData: FormData) {
   if (upload.error) fail(`Nalaganje datoteke ni uspelo: ${upload.error.message}`);
 
   // 2) AI reads it (server-side). No key → a mock sample invoice, so this still works.
-  let extracted: { data: InvoiceFields; raw: string; mock: boolean } = {
+  let extracted: {
+    data: InvoiceFields;
+    lineItems: LineItem[];
+    raw: string;
+    mock: boolean;
+  } = {
     data: emptyInvoiceFields(),
+    lineItems: [],
     raw: "",
     mock: false,
   };
@@ -65,25 +76,51 @@ export async function uploadInvoice(formData: FormData) {
     console.error("invoice_ocr extract failed", e);
   }
 
-  // 3) One row in the module's prefixed, RLS-scoped table.
+  // 3) The invoice header row in the module's prefixed, RLS-scoped table.
   const d = extracted.data;
-  const { error } = await supabase.from("invoice_ocr_invoices").insert({
-    user_id: user.id,
-    file_path: path,
-    file_mime: file.type,
-    vendor: d.vendor,
-    invoice_number: d.invoice_number,
-    issue_date: d.issue_date,
-    due_date: d.due_date,
-    currency: d.currency,
-    net_amount: d.net_amount,
-    tax_amount: d.tax_amount,
-    total_amount: d.total_amount,
-    raw_json: { model_output: extracted.raw },
-    extracted_mock: extracted.mock,
-    status: "pending",
-  });
-  if (error) fail(error.message);
+  const { data: inserted, error } = await supabase
+    .from("invoice_ocr_invoices")
+    .insert({
+      user_id: user.id,
+      file_path: path,
+      file_mime: file.type,
+      vendor: d.vendor,
+      invoice_number: d.invoice_number,
+      issue_date: d.issue_date,
+      due_date: d.due_date,
+      currency: d.currency,
+      net_amount: d.net_amount,
+      tax_amount: d.tax_amount,
+      total_amount: d.total_amount,
+      raw_json: { model_output: extracted.raw },
+      extracted_mock: extracted.mock,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+  if (error || !inserted) fail(error?.message ?? "Shranjevanje računa ni uspelo.");
+
+  // 4) The line items — normalized child rows (one per postavka). The header is already
+  // saved, so a line-insert hiccup must not fail the whole upload: log it and move on.
+  if (extracted.lineItems.length) {
+    const rows = extracted.lineItems.map((li, i) => ({
+      invoice_id: inserted.id,
+      user_id: user.id,
+      line_no: i + 1,
+      description: li.description,
+      quantity: li.quantity,
+      unit: li.unit,
+      unit_price: li.unit_price,
+      net_amount: li.net_amount,
+      tax_rate: li.tax_rate,
+      tax_amount: li.tax_amount,
+      total_amount: li.total_amount,
+    }));
+    const { error: lineErr } = await supabase
+      .from("invoice_ocr_line_items")
+      .insert(rows);
+    if (lineErr) console.error("invoice_ocr line items insert failed", lineErr);
+  }
 
   revalidatePath(BASE);
   redirect(`${BASE}?ok=1`);

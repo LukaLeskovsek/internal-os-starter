@@ -37,6 +37,18 @@ type Invoice = {
   comment: string | null;
 };
 
+type LineRow = {
+  line_no: number;
+  description: string | null;
+  quantity: number | null;
+  unit: string | null;
+  unit_price: number | null;
+  net_amount: number | null;
+  tax_rate: number | null;
+  tax_amount: number | null;
+  total_amount: number | null;
+};
+
 const SELECT_COLS =
   "id, file_path, file_mime, vendor, invoice_number, issue_date, due_date, currency, net_amount, tax_amount, total_amount, status, extracted_mock, reviewed_at, comment";
 
@@ -277,6 +289,16 @@ async function InvoiceDetail({ id }: { id: string }) {
   const st = STATUS[inv.status] ?? STATUS.pending;
   const isImage = inv.file_mime.startsWith("image/");
 
+  // The extracted line items (normalized child rows), RLS-scoped to this user.
+  const { data: lineData } = await supabase
+    .from("invoice_ocr_line_items")
+    .select(
+      "line_no, description, quantity, unit, unit_price, net_amount, tax_rate, tax_amount, total_amount",
+    )
+    .eq("invoice_id", inv.id)
+    .order("line_no", { ascending: true });
+  const lines = (lineData ?? []) as LineRow[];
+
   return (
     <div className="space-y-5">
       <BackLink />
@@ -341,6 +363,64 @@ async function InvoiceDetail({ id }: { id: string }) {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Postavke računa</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {lines.length > 0 ? (
+            <div className="overflow-hidden rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10 text-right">#</TableHead>
+                    <TableHead>Opis</TableHead>
+                    <TableHead className="text-right">Količina</TableHead>
+                    <TableHead>EM</TableHead>
+                    <TableHead className="text-right">Cena/EM</TableHead>
+                    <TableHead className="text-right">Neto</TableHead>
+                    <TableHead className="text-right">DDV %</TableHead>
+                    <TableHead className="text-right">Skupaj</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lines.map((li) => (
+                    <TableRow key={li.line_no}>
+                      <TableCell className="text-right text-muted-foreground tabular-nums">
+                        {li.line_no}
+                      </TableCell>
+                      <TableCell className="font-medium whitespace-normal">
+                        {li.description ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {li.quantity ?? "—"}
+                      </TableCell>
+                      <TableCell>{li.unit ?? "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money(li.unit_price, inv.currency)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money(li.net_amount, inv.currency)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {li.tax_rate !== null ? `${li.tax_rate} %` : "—"}
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {money(li.total_amount, inv.currency)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              Postavke niso bile zaznane.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

@@ -30,6 +30,19 @@ export type InvoiceFields = {
   total_amount: number | null;
 };
 
+// One invoice line / postavka. Stored normalized in invoice_ocr_line_items so a future
+// task can attach a comment or a dispute (status) to an individual line.
+export type LineItem = {
+  description: string | null;
+  quantity: number | null;
+  unit: string | null; // enota mere — kos, h, kg, …
+  unit_price: number | null;
+  net_amount: number | null;
+  tax_rate: number | null; // DDV %
+  tax_amount: number | null;
+  total_amount: number | null;
+};
+
 export function emptyInvoiceFields(): InvoiceFields {
   return {
     vendor: null,
@@ -44,7 +57,7 @@ export function emptyInvoiceFields(): InvoiceFields {
 }
 
 // The keyless fallback — a realistic Slovenian invoice so the whole flow (table,
-// status, CSV) demos without a key or any spend.
+// detail, line items, status, CSV) demos without a key or any spend.
 const SAMPLE: InvoiceFields = {
   vendor: "Mizarstvo Novak d.o.o.",
   invoice_number: "2026-0142",
@@ -56,11 +69,36 @@ const SAMPLE: InvoiceFields = {
   total_amount: 1525.0,
 };
 
+// Lines that sum to SAMPLE (net 1250 / DDV 275 / skupaj 1525).
+const SAMPLE_LINES: LineItem[] = [
+  {
+    description: "Hrastova jedilna miza 200×100",
+    quantity: 1,
+    unit: "kos",
+    unit_price: 950.0,
+    net_amount: 950.0,
+    tax_rate: 22,
+    tax_amount: 209.0,
+    total_amount: 1159.0,
+  },
+  {
+    description: "Dostava in montaža",
+    quantity: 1,
+    unit: "kos",
+    unit_price: 300.0,
+    net_amount: 300.0,
+    tax_rate: 22,
+    tax_amount: 66.0,
+    total_amount: 366.0,
+  },
+];
+
 const SYSTEM = [
   "Si pomočnik za zajem podatkov z računov (OCR).",
-  "Iz priloženega računa (slika ali PDF) izlušči polja in vrni IZKLJUČNO JSON v točno tej obliki:",
-  '{"vendor":string|null,"invoice_number":string|null,"issue_date":string|null,"due_date":string|null,"currency":string|null,"net_amount":number|null,"tax_amount":number|null,"total_amount":number|null}',
-  "Datume vrni v obliki YYYY-MM-DD. Zneske vrni kot števila brez valute in brez ločil tisočic (npr. 1525.00).",
+  "Iz priloženega računa (slika ali PDF) izlušči glavo IN vse postavke ter vrni IZKLJUČNO JSON v točno tej obliki:",
+  '{"vendor":string|null,"invoice_number":string|null,"issue_date":string|null,"due_date":string|null,"currency":string|null,"net_amount":number|null,"tax_amount":number|null,"total_amount":number|null,"line_items":[{"description":string|null,"quantity":number|null,"unit":string|null,"unit_price":number|null,"net_amount":number|null,"tax_rate":number|null,"tax_amount":number|null,"total_amount":number|null}]}',
+  "V line_items vključi VSAKO postavko/vrstico računa; če postavk ni, vrni prazen seznam [].",
+  "Datume vrni v obliki YYYY-MM-DD. Zneske vrni kot števila brez valute in brez ločil tisočic (npr. 1525.00); tax_rate je odstotek (npr. 22).",
   "Če podatka ni, uporabi null. Brez razlage in brez markdown ograj — samo goli JSON.",
 ].join(" ");
 
@@ -68,9 +106,19 @@ export async function extractInvoice(params: {
   base64: string; // raw base64, no data: prefix
   mime: string; // image/png | image/jpeg | application/pdf
   filename?: string;
-}): Promise<{ data: InvoiceFields; raw: string; mock: boolean }> {
+}): Promise<{
+  data: InvoiceFields;
+  lineItems: LineItem[];
+  raw: string;
+  mock: boolean;
+}> {
   if (!KEY) {
-    return { data: SAMPLE, raw: JSON.stringify(SAMPLE), mock: true };
+    return {
+      data: SAMPLE,
+      lineItems: SAMPLE_LINES,
+      raw: JSON.stringify({ ...SAMPLE, line_items: SAMPLE_LINES }),
+      mock: true,
+    };
   }
 
   const isPdf = params.mime === "application/pdf";
@@ -85,12 +133,12 @@ export async function extractInvoice(params: {
 
   const body: Record<string, unknown> = {
     model: VISION_MODEL,
-    max_tokens: 800,
+    max_tokens: 4096, // room for the header + every line item (truncation → [] lines, handled)
     messages: [
       { role: "system", content: SYSTEM },
       {
         role: "user",
-        content: [{ type: "text", text: "Izlušči polja s tega računa." }, filePart],
+        content: [{ type: "text", text: "Izlušči glavo in vse postavke s tega računa." }, filePart],
       },
     ],
   };
@@ -114,29 +162,50 @@ export async function extractInvoice(params: {
     choices?: { message?: { content?: string } }[];
   };
   const raw = json.choices?.[0]?.message?.content?.trim() ?? "";
-  return { data: parseInvoice(raw), raw, mock: false };
+  const parsed = parseExtraction(raw);
+  return { data: parsed.data, lineItems: parsed.lineItems, raw, mock: false };
 }
 
 // Tolerant parse: strip ``` fences, grab the first {...}, coerce types. On any failure
-// return empty fields — the row is still created so the user can fix it by hand.
-function parseInvoice(raw: string): InvoiceFields {
+// return an empty header + no lines — the invoice row is still created so the user can fix it.
+function parseExtraction(raw: string): { data: InvoiceFields; lineItems: LineItem[] } {
   try {
     const match = raw.replace(/```json|```/gi, "").match(/\{[\s\S]*\}/);
-    if (!match) return emptyInvoiceFields();
+    if (!match) return { data: emptyInvoiceFields(), lineItems: [] };
     const o = JSON.parse(match[0]) as Record<string, unknown>;
+    const lineItems = Array.isArray(o.line_items)
+      ? (o.line_items as unknown[]).map(lineFrom)
+      : [];
     return {
-      vendor: str(o.vendor),
-      invoice_number: str(o.invoice_number),
-      issue_date: dateStr(o.issue_date),
-      due_date: dateStr(o.due_date),
-      currency: str(o.currency),
-      net_amount: num(o.net_amount),
-      tax_amount: num(o.tax_amount),
-      total_amount: num(o.total_amount),
+      data: {
+        vendor: str(o.vendor),
+        invoice_number: str(o.invoice_number),
+        issue_date: dateStr(o.issue_date),
+        due_date: dateStr(o.due_date),
+        currency: str(o.currency),
+        net_amount: num(o.net_amount),
+        tax_amount: num(o.tax_amount),
+        total_amount: num(o.total_amount),
+      },
+      lineItems,
     };
   } catch {
-    return emptyInvoiceFields();
+    return { data: emptyInvoiceFields(), lineItems: [] };
   }
+}
+
+function lineFrom(v: unknown): LineItem {
+  const o = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
+  return {
+    description: str(o.description),
+    quantity: num(o.quantity),
+    unit: str(o.unit),
+    unit_price: num(o.unit_price),
+    net_amount: num(o.net_amount),
+    tax_rate: num(o.tax_rate),
+    tax_amount: num(o.tax_amount),
+    total_amount: num(o.total_amount),
+  };
 }
 
 function str(v: unknown): string | null {
