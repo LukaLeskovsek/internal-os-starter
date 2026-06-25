@@ -21,7 +21,7 @@ sign in  →  /home (launcher: only YOUR modules)
    checks it **server-side on every request**; the launcher shows only granted modules.
 3. **Module tables are prefixed** — `crm_demo_*`. Each module's migrations live in its own
    `db/` folder with RLS. No module reads another module's tables.
-4. **Admin is a module too** — granted only to the owner (the first person to sign up).
+4. **Admin is a module too** — granted only to seeded owners.
 
 ## Request flow for a module
 

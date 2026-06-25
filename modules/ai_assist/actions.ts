@@ -9,6 +9,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { userCanAccess } from "@/lib/access";
 import { generate } from "@/lib/ai";
+import { AiDailyLimitError, recordAiUsage } from "@/lib/ai-budget";
 
 const AskSchema = z.object({
   question: z.string().min(1, "Ask a question first"),
@@ -34,6 +35,7 @@ export async function askAssistant(formData: FormData) {
 
   let answer: string;
   try {
+    await recordAiUsage(supabase, "ai_assist");
     const result = await generate({
       system:
         "You are a concise internal assistant for a startup. Answer in 3–5 sentences. If you don't know, say so.",
@@ -41,6 +43,9 @@ export async function askAssistant(formData: FormData) {
     });
     answer = result.text;
   } catch (e) {
+    if (e instanceof AiDailyLimitError) {
+      redirect("/m/ai_assist?error=Daily+AI+limit+reached.+Try+again+tomorrow.");
+    }
     console.error("ai_assist generate failed", e);
     redirect("/m/ai_assist?error=AI+call+failed");
   }

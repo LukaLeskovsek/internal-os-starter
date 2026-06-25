@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:run": "node --env-file-if-exists=.env.local scripts/db-run.mjs"
+    "db:run": "node --env-file-if-exists=.env.local scripts/db-run.mjs",
+    "seed:admin": "node --env-file-if-exists=.env.local scripts/seed-admin.mjs",
+    "audit:security": "node scripts/audit-security.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

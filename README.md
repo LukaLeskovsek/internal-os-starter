@@ -28,9 +28,8 @@ New to git? Three safe verbs and one rule: [docs/git-basics.md](docs/git-basics.
 - supabase.com → **New project** (EU region).
 - Authentication → Sign In / Providers → Email → **"Confirm email" OFF**.
 - Copy your **Project URL** + **anon key** (Settings → API). Claude loads the core
-  schema for you in the next step — no SQL pasting. (It creates the three `core_*`
-  tables + the module catalogue; **the first person to sign up becomes the owner**,
-  granted every module.)
+  schema for you in the next step — no SQL pasting. Public signups become
+  **members with no module grants**; the owner is created by the seed script.
 
 ### 3. Fill in your keys, then let Claude load the schema
 ```bash
@@ -43,16 +42,27 @@ Add Resend/Sentry when ready; leave `INTRIX_API_KEY` empty for the demo CRM's **
 Then ask Claude: **"run the core migration."** It applies the schema for you:
 ```bash
 npm run db:run -- supabase/migrations/0001_core.sql
+npm run db:run -- supabase/migrations/0002_admin.sql
+npm run db:run -- supabase/migrations/0003_fix_profile_grants.sql
+npm run db:run -- supabase/migrations/0004_seeded_admin_bootstrap.sql
+npm run db:run -- supabase/migrations/0005_ai_usage.sql
 ```
 *(No access token? The command tells you to paste the file into Supabase → SQL Editor.)*
 Every module you scaffold later works the same way — Claude runs its migration with `db:run`.
+
+Now seed the first owner. Set `ADMIN_EMAIL`, `ADMIN_FULL_NAME` (optional), and
+`SUPABASE_SERVICE_ROLE_KEY` in `.env.local`, then run:
+```bash
+npm run seed:admin
+```
+Open the printed invite link, set the password, and use that account for Admin.
 
 ### 4. Run it
 ```bash
 npm run dev
 ```
-Open http://localhost:3000, create your account (you become the owner), and you land
-on the launcher with every module.
+Open http://localhost:3000. Use the seeded invite account for Admin, or create a
+public account to see the member-with-no-grants state until an owner grants access.
 
 ### 5. Add a module
 Ask Claude Code:
@@ -90,7 +100,7 @@ Four worked modules ship with the template — read them to learn the patterns, 
 - `/check-architecture` audits all of the above. See `CLAUDE.md` and `docs/architecture.md`.
 
 ## Admin — manage users & modules (owners only)
-Open **`/m/admin`** (you're the owner if you were the first to sign up):
+Open **`/m/admin`** with the seeded owner account:
 - **Users** — add a person (email + temporary password; no email is sent, you share it), change role (member↔owner), deactivate, or delete. A disabled user is blocked from the whole app.
 - **Modules** — turn a tool on/off (a disabled module disappears from launchers and is blocked even if granted), rename its label, and reorder it.
 - **Access** — the user × module grant grid.
@@ -99,8 +109,11 @@ Adding/role/disable/delete of users runs server-side with the Supabase **secret 
 
 ## Scripts
 - `npm run dev` · `npm run build` · `npm run lint` · `npm start`
+- `npm run seed:admin` — create/update the initial owner and print the invite link.
+- `npm run audit:security` — fail on high/critical npm advisories.
 
 ## Notes
 - The Supabase "Edge Runtime / `process.version`" build warning is expected and harmless.
 - Secrets live in `.env.local` and Vercel — never in code, never in chat.
+- Security notes: `docs/security.md`.
 - How this relates to the Day-2 app: `docs/relationship-to-saas-starter.md`.

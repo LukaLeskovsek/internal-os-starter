@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { userCanAccess } from "@/lib/access";
+import { AiDailyLimitError, recordAiUsage } from "@/lib/ai-budget";
 import {
   extractInvoice,
   emptyInvoiceFields,
@@ -66,12 +67,16 @@ export async function uploadInvoice(formData: FormData) {
     mock: false,
   };
   try {
+    await recordAiUsage(supabase, MODULE);
     extracted = await extractInvoice({
       base64: bytes.toString("base64"),
       mime: file.type,
       filename: file.name,
     });
   } catch (e) {
+    if (e instanceof AiDailyLimitError) {
+      fail("Dnevna AI omejitev je dosežena. Poskusi jutri.");
+    }
     // The file is saved; create a row with empty fields the user can fix by hand.
     console.error("invoice_ocr extract failed", e);
   }
