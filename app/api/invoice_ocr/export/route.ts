@@ -66,12 +66,16 @@ export async function GET(request: Request) {
   });
 }
 
-// Minimal RFC-4180 CSV: quote a field only when it contains a comma, quote, or newline,
-// and double any internal quotes. No dependency — readable on purpose.
+// Minimal RFC-4180 CSV. Two safeguards: (1) quote a field that contains a comma,
+// quote, or newline (doubling internal quotes); (2) FORMULA-INJECTION guard — these
+// values come from OCR of untrusted documents, so a cell that starts with = + - @ tab
+// or CR (which Excel/Sheets would run as a formula) gets a leading apostrophe. Applied
+// to every cell, since OCR amounts aren't guaranteed to be numeric. No dependency.
 function toCsv(rows: (string | number | null)[][]): string {
   const esc = (v: string | number | null) => {
-    const s = v === null || v === undefined ? "" : String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    let s = v === null || v === undefined ? "" : String(v);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return rows.map((r) => r.map(esc).join(",")).join("\r\n");
 }
