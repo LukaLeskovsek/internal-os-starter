@@ -6,15 +6,18 @@
 // "never modify". Vision is a new capability, so — exactly like crm_demo owns its own
 // Intrix client — this module owns its own AI client. Same key, same mock idea.
 //
-// NOTE: the PDF content-part shape and the vision model slug are ASSUMED. Verify them
-// against current OpenRouter docs (openrouter.ai/docs, openrouter.ai/models) once a real
-// key is in use. The image path is the always-works fallback; mock covers the keyless case.
+// Verified against the live OpenRouter API (2026-06-25): images use an image_url part,
+// PDFs a file part (Claude ingests PDFs natively; the file-parser plugin keeps it working
+// if you swap to a non-Claude model). Model slugs MOVE — verify the current one at
+// openrouter.ai/models (e.g. the old claude-3.5-sonnet is gone; claude-sonnet-4.6 is
+// current). Mock mode covers the keyless case.
 import "server-only";
 
 const KEY = process.env.OPENROUTER_API_KEY;
-// Must be a VISION + PDF capable model. Verify the current slug at openrouter.ai/models.
+// Must be a VISION + PDF capable model. Slugs move — verify at openrouter.ai/models
+// (claude-haiku-4.5 is cheaper; claude-opus-* is stronger).
 const VISION_MODEL =
-  process.env.OPENROUTER_VISION_MODEL ?? "anthropic/claude-3.5-sonnet";
+  process.env.OPENROUTER_VISION_MODEL ?? "anthropic/claude-sonnet-4.6";
 
 export type InvoiceFields = {
   vendor: string | null;
@@ -101,7 +104,11 @@ export async function extractInvoice(params: {
     body: JSON.stringify(body),
     cache: "no-store",
   });
-  if (!res.ok) throw new Error(`OpenRouter OCR failed: ${res.status}`);
+  if (!res.ok) {
+    // Surface WHY (e.g. a bad/retired model slug returns 400 "model not found").
+    const detail = await res.text().catch(() => "");
+    throw new Error(`OpenRouter OCR failed: ${res.status} ${detail.slice(0, 300)}`);
+  }
 
   const json = (await res.json()) as {
     choices?: { message?: { content?: string } }[];
