@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  // Invoice uploads (photos / PDFs) exceed the 1 MB Server Action default body limit.
+  experimental: { serverActions: { bodySizeLimit: "10mb" } },
+};
 
 // Sentry build-time options. Source-map upload only runs when SENTRY_AUTH_TOKEN
 // is present (set automatically on Vercel after you connect Sentry); locally it

@@ -30,6 +30,12 @@ export const MODULES: ModuleDef[] = [
     description: "Ask a question; AI answers and the Q&A is saved.",
     icon: "🤖",
   },
+  {
+    id: "invoice_ocr",
+    name: "Likvidacija računov",
+    description: "Naloži račun → AI prebere (OCR) → potrdi/zavrni → izvozi CSV.",
+    icon: "🧾",
+  },
 ];
 
 export function getModule(id: string): ModuleDef | undefined {

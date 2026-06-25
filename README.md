@@ -70,6 +70,19 @@ mock-mode fallback).
 
 ---
 
+## Included example modules
+
+Four worked modules ship with the template — read them to learn the patterns, then build your own:
+
+| Module | What it shows |
+|---|---|
+| **Admin** (`admin`) | Owner-only user + module management (service-role client behind owner checks). |
+| **CRM (demo)** (`crm_demo`) | A read-only external API with mock-mode fallback — the reference for `/integrate-api`. |
+| **AI Assistant** (`ai_assist`) | A server-side LLM call stored in an RLS table — the reference for `/integrate-ai`. |
+| **Likvidacija računov** (`invoice_ocr`) | AI **invoice OCR**: upload a photo/PDF → a vision model reads the fields → a liquidation (approve / reject) table → **CSV export**. Adds a private Supabase **Storage** bucket; the OCR client lives in the module (`lib/ocr.ts`, mock-mode like `crm_demo`). UI is in Slovenian. Needs a vision-capable `OPENROUTER_VISION_MODEL`. |
+
+---
+
 ## The rules (and how they're enforced)
 - A module is a folder + a registry entry + a `core_modules` row.
 - Module access is **data** (`core_user_modules`), checked server-side in `app/m/[module]/page.tsx`.
