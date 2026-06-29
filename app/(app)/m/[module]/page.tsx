@@ -6,6 +6,7 @@ import { AdminModule } from "@/modules/admin/pages";
 import { CrmDemoModule } from "@/modules/crm_demo/pages";
 import { AiAssistModule } from "@/modules/ai_assist/pages";
 import { InvoiceOcrModule } from "@/modules/invoice_ocr/pages";
+import { WorkOrdersModule } from "@/modules/work_orders/pages";
 import {
   Card,
   CardDescription,
@@ -73,6 +74,8 @@ export default async function ModuleRouter({
       return <AiAssistModule />;
     case "invoice_ocr":
       return <InvoiceOcrModule selectedId={id} />;
+    case "work_orders":
+      return <WorkOrdersModule selectedId={id} />;
     default:
       notFound();
   }
