@@ -1,7 +1,7 @@
 ---
 module: work_orders
 title: Delovni nalogi
-status: planned
+status: built
 created: 2026-06-29
 by: Luka Leskovšek
 verified_runs: 0
