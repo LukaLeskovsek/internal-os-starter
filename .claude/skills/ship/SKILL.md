@@ -13,6 +13,7 @@ When invoked, get the change to a working public URL — and **confirm** it, don
 4. **Confirm the LIVE url:** open the production URL and check it loads (not a login/401 page), sign-in works, and the feature works.
 5. **Public check:** if the URL shows a Vercel login / "Authenticate" page, Deployment Protection is on → *Vercel → Settings → Deployment Protection → turn off **Vercel Authentication*** so your pair can open it.
 6. Report the live URL.
+7. **Record the release.** Append `docs/features/<moduleId>/runs/<YYYY-MM-DD-HHMM>-ship.md` (live URL, commit ref — format in `docs/features/README.md`) and set the Card's `status: shipped` and `live_url`.
 
 ## Rules
 - Production = `main`. Don't push broken code to `main` — that's what preview URLs are for.

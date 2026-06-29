@@ -22,6 +22,7 @@ When invoked, create a new module the rails-compliant way. Never hand-create mod
    ```
    This applies the prefixed, RLS-protected table **and** registers the module in the catalogue. Then confirm the table exists before moving on. *(Fallback: if `SUPABASE_ACCESS_TOKEN` isn't set, the command tells the user to paste the file into Supabase → SQL Editor — but with the token set, you run it.)*
 5. Remind the owner to grant themselves the module in **Admin** (`/m/admin`).
+6. **Start its Feature Card.** If `docs/features/<id>/feature.md` doesn't exist, create it from the template in `docs/features/README.md` (`module: <id>`, `title: <Name>`, `status: planned`) so `/plan` and the rest of the loop have a home to write to.
 
 ## Rules
 - Every table name starts with `<id>_`. Never an unprefixed table.

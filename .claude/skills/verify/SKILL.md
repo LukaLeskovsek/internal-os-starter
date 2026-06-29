@@ -15,6 +15,7 @@ When invoked, don't *say* it works — *show* it. Run the app, walk the real flo
    - As that member, confirm the launcher shows **only** that module, and visiting an **ungranted** module's URL is **refused** server-side.
    - Confirm a member **cannot** grant modules (owner-only).
 5. Report a checklist of ✓ / ✗ with what you actually saw — not "should work."
+6. **Save the evidence.** Append `docs/features/<moduleId>/runs/<YYYY-MM-DD-HHMM>-verify.md` with that ✓/✗ checklist and a PASS/FAIL verdict (format in `docs/features/README.md`). On all-✓, set the Card's `status: verified` and bump `verified_runs` by 1 — that counter is the gate before you treat the module as trusted.
 
 ## Rules
 - "Works" means you ran it and watched it happen — including the member's restricted view.

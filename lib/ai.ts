@@ -12,14 +12,28 @@
 // render it. The ai_assist module is the worked example. Use /integrate-ai.
 import "server-only";
 import OpenAI from "openai";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+const execFileAsync = promisify(execFile);
 
 // Cheap + fast default for a workshop (the key is capped). Verify the current slug
 // at openrouter.ai/models; bump to a stronger Claude model if you want.
 const DEFAULT_MODEL = process.env.OPENROUTER_MODEL ?? "anthropic/claude-3.5-haiku";
 
-/** True when a real key is set. When false, generate() returns mock output. */
+// Which engine answers generate():
+//   "openrouter" (default) — pay-as-you-go API via the capped OpenRouter key.
+//   "local-claude"         — offload to the local Claude Code CLI (`claude -p`):
+//                            your Claude SUBSCRIPTION answers — no API key, no
+//                            per-token spend. Works only where `claude` is
+//                            installed + logged in (your own machine), so use it
+//                            for local single-player dev; leave it unset on a
+//                            deployed server (Vercel) and it uses OpenRouter.
+// Set AI_BACKEND in .env.local.
+const BACKEND = process.env.AI_BACKEND ?? "openrouter";
+
+/** True when an engine can answer for real (an API key, or the local Claude CLI). */
 export function aiConfigured(): boolean {
-  return Boolean(process.env.OPENROUTER_API_KEY);
+  return BACKEND === "local-claude" || Boolean(process.env.OPENROUTER_API_KEY);
 }
 
 /**
@@ -32,6 +46,10 @@ export async function generate(params: {
   system?: string;
   model?: string;
 }): Promise<{ text: string; mock: boolean }> {
+  if (BACKEND === "local-claude") {
+    return generateViaLocalClaude(params);
+  }
+
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return { text: mockOutput(), mock: true };
@@ -51,6 +69,45 @@ export async function generate(params: {
   });
 
   return { text: res.choices[0]?.message?.content?.trim() ?? "", mock: false };
+}
+
+/**
+ * Offload one call to the local Claude Code CLI (`claude -p`). Your Claude
+ * SUBSCRIPTION answers — no API key, no per-token billing (while Anthropic keeps
+ * headless `claude -p` on subscription billing). If `claude` isn't installed /
+ * logged in, or it errors, we fall back to mock so the module still works.
+ *
+ * CRITICAL: we scrub ANTHROPIC_API_KEY from the child's environment — if it is set,
+ * Claude Code uses the key and bills pay-as-you-go instead of the subscription (a
+ * documented surprise-bill footgun). Needs the Node.js runtime, not Edge — Server
+ * Actions run on Node by default.
+ */
+async function generateViaLocalClaude(params: {
+  prompt: string;
+  system?: string;
+}): Promise<{ text: string; mock: boolean }> {
+  const env = { ...process.env };
+  delete env.ANTHROPIC_API_KEY; // force subscription auth, never pay-as-you-go
+
+  const input = params.system
+    ? `${params.system}\n\n---\n\n${params.prompt}`
+    : params.prompt;
+
+  // Optional: point AI_BRAIN_DIR at a company-brain folder and Claude auto-loads
+  // that folder's CLAUDE.md / PERSON / COMPANY / BRAND as grounding. Omit to run
+  // without it (don't point it at this app's root — that loads the dev rules).
+  const cwd = process.env.AI_BRAIN_DIR || undefined;
+
+  try {
+    const { stdout } = await execFileAsync(
+      "claude",
+      ["-p", input, "--output-format", "text"],
+      { env, cwd, timeout: 120_000, maxBuffer: 8 * 1024 * 1024 },
+    );
+    return { text: stdout.trim(), mock: false };
+  } catch {
+    return { text: mockOutput(), mock: true }; // claude missing / not logged in / timed out
+  }
 }
 
 function mockOutput(): string {
