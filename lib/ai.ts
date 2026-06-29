@@ -12,9 +12,7 @@
 // render it. The ai_assist module is the worked example. Use /integrate-ai.
 import "server-only";
 import OpenAI from "openai";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-const execFileAsync = promisify(execFile);
+import { spawn } from "node:child_process";
 
 // Cheap + fast default for a workshop (the key is capped). Verify the current slug
 // at openrouter.ai/models; bump to a stronger Claude model if you want.
@@ -77,12 +75,14 @@ export async function generate(params: {
  * headless `claude -p` on subscription billing). If `claude` isn't installed /
  * logged in, or it errors, we fall back to mock so the module still works.
  *
- * CRITICAL: we scrub ANTHROPIC_API_KEY from the child's environment — if it is set,
- * Claude Code uses the key and bills pay-as-you-go instead of the subscription (a
- * documented surprise-bill footgun). Needs the Node.js runtime, not Edge — Server
- * Actions run on Node by default.
+ * SECURITY: the (untrusted) prompt is written to the child's STDIN, never passed
+ * as an argv element — so a prompt that starts with "-" can't be smuggled in as a
+ * claude flag (argv injection). Only fixed flags are passed as args. We also scrub
+ * ANTHROPIC_API_KEY from the child env — if set, Claude Code bills pay-as-you-go
+ * API instead of the subscription (a documented surprise-bill footgun). Needs the
+ * Node.js runtime, not Edge — Server Actions run on Node by default.
  */
-async function generateViaLocalClaude(params: {
+function generateViaLocalClaude(params: {
   prompt: string;
   system?: string;
 }): Promise<{ text: string; mock: boolean }> {
@@ -98,16 +98,25 @@ async function generateViaLocalClaude(params: {
   // without it (don't point it at this app's root — that loads the dev rules).
   const cwd = process.env.AI_BRAIN_DIR || undefined;
 
-  try {
-    const { stdout } = await execFileAsync(
-      "claude",
-      ["-p", input, "--output-format", "text"],
-      { env, cwd, timeout: 120_000, maxBuffer: 8 * 1024 * 1024 },
-    );
-    return { text: stdout.trim(), mock: false };
-  } catch {
-    return { text: mockOutput(), mock: true }; // claude missing / not logged in / timed out
-  }
+  return new Promise((resolve) => {
+    const mock = () => resolve({ text: mockOutput(), mock: true });
+    // Only FIXED flags are argv; the prompt goes on stdin (see SECURITY above).
+    const child = spawn("claude", ["-p", "--output-format", "text"], { env, cwd });
+    let out = "";
+    const timer = setTimeout(() => { child.kill("SIGKILL"); mock(); }, 120_000);
+    child.stdout.on("data", (d) => {
+      out += d.toString();
+      if (out.length > 8 * 1024 * 1024) child.kill("SIGKILL"); // cap runaway output
+    });
+    child.on("error", () => { clearTimeout(timer); mock(); }); // claude not installed
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code === 0 && out.trim()) resolve({ text: out.trim(), mock: false });
+      else mock(); // not logged in / non-zero / empty → mock
+    });
+    child.stdin.on("error", () => {}); // ignore EPIPE if the child exits early
+    child.stdin.end(input);
+  });
 }
 
 function mockOutput(): string {
