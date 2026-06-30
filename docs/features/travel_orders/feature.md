@@ -1,7 +1,7 @@
 ---
 module: travel_orders
 title: Potni nalogi
-status: planned
+status: built
 created: 2026-06-30
 by: Luka Leskovšek
 verified_runs: 0
