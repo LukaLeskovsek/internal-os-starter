@@ -42,6 +42,12 @@ export const MODULES: ModuleDef[] = [
     description: "Pisarna ustvari in dodeli nalog; teren ga na telefonu zaključi.",
     icon: "🛠️",
   },
+  {
+    id: "travel_orders",
+    name: "Potni nalogi",
+    description: "Vneseš pot (stranka, relacija, km, čas); izračuna kilometrino.",
+    icon: "🚗",
+  },
 ];
 
 export function getModule(id: string): ModuleDef | undefined {
