@@ -28,3 +28,6 @@ next-env.d.ts
 
 # vercel
 .vercel
+
+# Workshop profile pointer is specific to this computer.
+.claude/profile-location.local.md

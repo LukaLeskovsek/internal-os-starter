@@ -2,14 +2,11 @@
 
 This is an **internal company system** built as a **modular monolith**: one app,
 one sign-in, many tool-modules, and an admin surface that decides which user sees
-which module. It is the Day-3 sibling of the Day-2 SaaS starter — same stack, same
-auth, same conventions. The only new ideas are **modules, module access, and the
-API integration**. See `docs/relationship-to-saas-starter.md`.
+which module. It can be used independently. Historical context is in `docs/relationship-to-saas-starter.md`; completing that course is not a prerequisite. Workshop setup is in `docs/delavnica.md`.
 
 ## First, read the founder's context
 
-Before branding or copy work, read `PERSON.md`, `COMPANY.md`, `BRAND.md` if present
-and write in that voice. If missing, ask — don't invent.
+Before planning or writing, read the profile at the confirmed location in `.claude/profile-location.local.md`, if present. That local-only pointer must select the company for this app. Read PERSON.md and INDEX.md, then the selected COMPANY.md, BRAND.md and PRIMERI.md. If the pointer is missing or unavailable, use existing root-level PERSON.md / COMPANY.md / BRAND.md as a starting point; ask only about missing context. Never copy the whole profile into the public starter or overwrite global instructions. In a new conversation, verify the location again. A development profile does not automatically become context for model calls inside the app; select and review those rules separately.
 
 ## The four architecture rules (non-negotiable)
 

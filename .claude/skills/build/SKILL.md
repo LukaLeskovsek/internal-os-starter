@@ -8,12 +8,8 @@ When invoked, implement **one** slice (the next one from `/plan`) inside the rep
 ## Read for context
 `CLAUDE.md` (the four rules), the plan from `/plan`, and the `crm_demo` module (the pattern to imitate).
 
-## Grill first (nail the slice)
-Before touching code, run **1–2 rounds of "grill me"** — one question at a time — to pin
-down *this* slice: the exact behaviour, the precise input and output, where the data
-comes from, and what "done" looks like (the check `/verify` will run). If `/plan` left
-anything fuzzy, resolve it here — don't build on a guess. Reflect the slice back in one
-sentence, get a "yes", then build.
+## Clarify what is missing
+Read the accepted plan and CLAUDE.md profile guidance. Reuse agreed decisions. Ask one question only when a missing decision changes this slice. State the slice before building; an explicit request to implement the agreed plan is sufficient authorization for that work. External actions still follow the plan's permissions.
 
 ## Steps
 1. State the one slice you're doing (one sentence).

@@ -5,11 +5,8 @@ description: Shape a feature idea into a small, ordered build plan before any co
 
 When invoked, turn the user's idea into the smallest sensible plan — then stop. Do not write code; `/build` does that.
 
-## Grill first (extract, don't assume)
-Before planning, run **2–3 rounds of "grill me"** — **one sharp question at a time**,
-each building on the last answer (never a wall of questions). Founders under-specify;
-your job is to pull what's in their head onto the table. Keep going until you can state
-the **input → process → output** concretely. Pick the angles that are still fuzzy:
+## Clarify what is missing
+First read the handoff, saved decisions and confirmed profile from CLAUDE.md. Reuse answers already given. Ask one missing question at a time until the input → process → output is concrete. Do not require a fixed number of interview rounds. Pick the angles that are still fuzzy:
 - **Job:** what does this do for the user, in one sentence? What triggers it?
 - **Input:** what goes in, and where from — a form field, a paste, this module's own data, an external system?
 - **Process:** what happens to it — match, draft, classify, summarise? Is there a human approval step?

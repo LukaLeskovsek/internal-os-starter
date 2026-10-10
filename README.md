@@ -1,11 +1,12 @@
 # Internal OS Starter
 
 Your company's internal system: **one app, one sign-in, many tools (modules)**, with
-an admin screen that controls who sees what. This is Day 3 — it builds directly on
-the Day-2 SaaS starter (same stack, same sign-in), and adds modules.
+an admin screen that controls who sees what. You can start here without another course or repository.
+
+**Tovarna podjemov:** start with [Priprava za delavnico](docs/delavnica.md). Claude helps prepare your own private app and reuses your existing workshop profile.
 
 **Stack:** Next.js 15 · Supabase (auth + database, RLS) · Resend · Sentry · Vercel.
-Same accounts you created on Day 2.
+Use your own GitHub and Supabase accounts. Add hosting, email, monitoring and AI services when your feature needs them.
 
 ---
 
@@ -26,7 +27,7 @@ New to git? Three safe verbs and one rule: [docs/git-basics.md](docs/git-basics.
 
 ### 2. Create a Supabase project & load the core schema
 - supabase.com → **New project** (EU region).
-- Authentication → Sign In / Providers → Email → **"Confirm email" OFF**.
+- Keep email confirmation enabled for real users. For an isolated test project, decide explicitly whether to change it; do not carry test settings into a deployment.
 - Copy your **Project URL** + **anon key** (Settings → API). Claude loads the core
   schema for you in the next step — no SQL pasting. Public signups become
   **members with no module grants**; the owner is created by the seed script.
