@@ -34,3 +34,6 @@ next-env.d.ts
 
 # local tool output (browser logs, reports)
 .gstack/
+
+# Supabase CLI local cache
+supabase/.temp/
