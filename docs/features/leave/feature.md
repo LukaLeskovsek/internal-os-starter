@@ -1,11 +1,11 @@
 ---
 module: leave
 title: Dopusti
-status: built
+status: verified
 pattern: hitri-vnos
 created: 2026-10-11
 by: Luka Leskovšek
-verified_runs: 1
+verified_runs: 2
 live_url:
 ---
 
