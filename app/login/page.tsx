@@ -3,15 +3,15 @@ import { signIn, signUp } from "./actions";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { AuthAlert, AuthShell } from "@/components/app/auth-shell";
+import { PasswordInput } from "@/components/app/password-input";
+import { authErrorSl } from "@/lib/i18n/auth-errors";
+import { sl } from "@/lib/i18n/sl";
 
-// DONE — do not modify this flow. Password sign-in/sign-up via Server Actions.
+export const metadata = { title: sl.auth.signIn };
+
+// Password sign-in/sign-up via the Server Actions in ./actions.ts (keep those as
+// they are). This page only presents them; errors are translated for display.
 export default async function LoginPage({
   searchParams,
 }: {
@@ -19,78 +19,64 @@ export default async function LoginPage({
 }) {
   const { mode, error } = await searchParams;
   const isSignup = mode === "signup";
+  const t = sl.auth;
+  const message = authErrorSl(error);
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-12">
-      <div className="w-full max-w-sm">
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-xl tracking-tight">
-              {isSignup ? "Create your account" : "Welcome back"}
-            </CardTitle>
-            <CardDescription>
-              {isSignup ? "Use your email and a password." : "Sign in to continue."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {error ? (
-              <p
-                role="alert"
-                className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-              >
-                {error}
-              </p>
+    <AuthShell
+      title={isSignup ? t.signUpTitle : t.signInTitle}
+      description={isSignup ? t.signUpText : t.signInText}
+      footer={
+        isSignup ? (
+          <>
+            {t.haveAccount}{" "}
+            <Link className="font-semibold text-primary underline-offset-4 hover:underline" href="/login">
+              {t.signInLink}
+            </Link>
+          </>
+        ) : (
+          <>
+            {t.noAccount}{" "}
+            <Link className="font-semibold text-primary underline-offset-4 hover:underline" href="/login?mode=signup">
+              {t.createOne}
+            </Link>
+          </>
+        )
+      }
+    >
+      {message ? <AuthAlert>{message}</AuthAlert> : null}
+      <form action={isSignup ? signUp : signIn} className="space-y-5">
+        {isSignup ? (
+          <div className="space-y-2">
+            <Label htmlFor="full_name">{t.name}</Label>
+            <Input id="full_name" name="full_name" autoComplete="name" />
+          </div>
+        ) : null}
+        <div className="space-y-2">
+          <Label htmlFor="email">{t.email}</Label>
+          <Input id="email" name="email" type="email" required autoComplete="email" autoFocus />
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <Label htmlFor="password">{t.password}</Label>
+            {!isSignup ? (
+              <Link href="/forgot-password" className="text-sm text-muted-foreground hover:text-foreground">
+                {t.forgot}
+              </Link>
             ) : null}
-            <form action={isSignup ? signUp : signIn} className="space-y-4">
-              {isSignup ? (
-                <div className="space-y-1.5">
-                  <Label htmlFor="full_name">Name</Label>
-                  <Input id="full_name" name="full_name" autoComplete="name" />
-                </div>
-              ) : null}
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email" type="email" required autoComplete="email" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  minLength={6}
-                  autoComplete={isSignup ? "new-password" : "current-password"}
-                />
-              </div>
-              <SubmitButton
-                size="lg"
-                className="w-full"
-                pendingText={isSignup ? "Creating…" : "Signing in…"}
-              >
-                {isSignup ? "Create account" : "Sign in"}
-              </SubmitButton>
-            </form>
-          </CardContent>
-        </Card>
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          {isSignup ? (
-            <>
-              Already have an account?{" "}
-              <Link className="font-medium text-foreground underline-offset-4 hover:underline" href="/login">
-                Sign in
-              </Link>
-            </>
-          ) : (
-            <>
-              New here?{" "}
-              <Link className="font-medium text-foreground underline-offset-4 hover:underline" href="/login?mode=signup">
-                Create an account
-              </Link>
-            </>
-          )}
-        </p>
-      </div>
-    </main>
+          </div>
+          <PasswordInput
+            id="password"
+            name="password"
+            required
+            minLength={6}
+            autoComplete={isSignup ? "new-password" : "current-password"}
+          />
+        </div>
+        <SubmitButton size="lg" className="w-full" pendingText={isSignup ? t.signingUp : t.signingIn}>
+          {isSignup ? t.signUp : t.signIn}
+        </SubmitButton>
+      </form>
+    </AuthShell>
   );
 }

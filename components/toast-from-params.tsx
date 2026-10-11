@@ -15,7 +15,7 @@ export function ToastFromParams() {
     const ok = params.get("ok");
     const error = params.get("error");
     if (!ok && !error) return;
-    if (ok) toast.success(ok === "1" ? "Done." : ok);
+    if (ok) toast.success(ok === "1" ? "Shranjeno." : ok);
     if (error) toast.error(error);
     const next = new URLSearchParams(params.toString());
     next.delete("ok");

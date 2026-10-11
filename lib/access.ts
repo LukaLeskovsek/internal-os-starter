@@ -1,8 +1,10 @@
 // Module-access + identity helpers. Core — change with care.
 // RLS guarantees a member only ever reads their own grants/profile; owners read
 // all. These helpers also enforce access (enabled modules, not-disabled users).
+import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getModule } from "@/modules/_registry";
+import type { ModuleDef } from "@/lib/modules";
 
 export type Role = "owner" | "member";
 
@@ -84,15 +86,13 @@ export async function listUsers(supabase: SupabaseClient): Promise<Profile[]> {
 
 export type LauncherModule = {
   id: string;
-  label: string;
-  icon: string;
-  description: string;
+  label: string; // owner-editable name from core_modules
+  def: ModuleDef; // icon, description, primaryAction, summary… from the registry
 };
 
-// What to show on a user's launcher: modules they are granted AND that are
-// enabled, ordered by sort_order. Label comes from the DB (owner-editable);
-// icon/description from the code registry.
-export async function getLauncherModules(
+// What a user may open: modules they are granted AND that are enabled, ordered
+// by sort_order. Cached per request — the layout (⌘K, switcher) and Home share it.
+export const getLauncherModules = cache(async function getLauncherModules(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<LauncherModule[]> {
@@ -112,15 +112,38 @@ export async function getLauncherModules(
 
   return (mods ?? []).flatMap((m) => {
     const def = getModule(m.id as string);
-    return def
-      ? [
-          {
-            id: m.id as string,
-            label: (m.name as string) ?? def.name,
-            icon: def.icon,
-            description: def.description,
-          },
-        ]
-      : [];
+    return def ? [{ id: def.id, label: moduleLabel(m.name as string | null, def), def }] : [];
   });
+});
+
+// Catalogue names the template shipped before the Slovenian redesign. If the DB
+// still holds one of these, the owner never renamed it → use the registry name.
+const LEGACY_DEFAULT_NAMES = new Set([
+  "Admin",
+  "CRM (demo)",
+  "AI Assistant",
+  "Likvidacija računov",
+]);
+
+export function moduleLabel(dbName: string | null, def: ModuleDef): string {
+  if (!dbName || LEGACY_DEFAULT_NAMES.has(dbName)) return def.name;
+  return dbName;
+}
+
+export type ModuleMember = { id: string; full_name: string | null; email: string | null };
+
+// Colleagues who can use a module (e.g. to assign them work). Goes through a
+// security-definer RPC so a MEMBER sees colleagues too — but only people granted
+// that same module, and only if the caller is granted it (or is an owner).
+export async function listModuleMembers(
+  supabase: SupabaseClient,
+  moduleId: string,
+): Promise<ModuleMember[]> {
+  const { data, error } = await supabase.rpc("core_module_members", { p_module: moduleId });
+  if (error) {
+    // Migration 0006 not applied yet → fall back to what RLS lets us read.
+    console.error("core_module_members failed — run 0006_core_module_members.sql", error.message);
+    return (await listUsers(supabase)).filter((u) => !u.disabled);
+  }
+  return (data as ModuleMember[] | null) ?? [];
 }

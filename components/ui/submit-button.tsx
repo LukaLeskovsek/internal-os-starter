@@ -6,7 +6,8 @@
 import { useFormStatus } from "react-dom";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { type ComponentProps } from "react";
+import { type ComponentProps, useContext } from "react";
+import { FormPending } from "@/components/app/action-form";
 
 type Props = ComponentProps<typeof Button> & { pendingText?: string };
 
@@ -16,7 +17,10 @@ export function SubmitButton({
   disabled,
   ...props
 }: Props) {
-  const { pending } = useFormStatus();
+  // Works in plain <form action> forms AND inside <ActionForm>.
+  const { pending: formPending } = useFormStatus();
+  const ctxPending = useContext(FormPending);
+  const pending = formPending || ctxPending;
   return (
     <Button type="submit" disabled={pending || disabled} {...props}>
       {pending ? (
