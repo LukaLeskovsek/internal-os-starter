@@ -80,7 +80,8 @@ export async function generate(params: {
  *
  * SECURITY: the (untrusted) prompt is written to the child's STDIN, never passed
  * as an argv element — so a prompt that starts with "-" can't be smuggled in as a
- * claude flag (argv injection). Only fixed flags are passed as args. We also scrub
+ * claude flag (argv injection). Only fixed flags are passed as args, plus the
+ * module's system line as a single `--system-prompt=…` argument. We also scrub
  * ANTHROPIC_API_KEY from the child env — if set, Claude Code bills pay-as-you-go
  * API instead of the subscription (a documented surprise-bill footgun). Needs the
  * Node.js runtime, not Edge — Server Actions run on Node by default.
@@ -92,9 +93,9 @@ function generateViaLocalClaude(params: {
   const env = { ...process.env };
   delete env.ANTHROPIC_API_KEY; // force subscription auth, never pay-as-you-go
 
-  const input = params.system
-    ? `${params.system}\n\n---\n\n${params.prompt}`
-    : params.prompt;
+  // The module's system line REPLACES Claude Code's own system prompt, so the
+  // answer comes from the app's instructions, not a coding agent's.
+  const system = params.system ?? "Si jedrnat in prijazen pomočnik. Odgovarjaj v slovenščini.";
 
   // Optional: point AI_BRAIN_DIR at a company-brain folder and Claude auto-loads
   // that folder's CLAUDE.md / PERSON / COMPANY / BRAND as grounding. Omit to run
@@ -105,7 +106,24 @@ function generateViaLocalClaude(params: {
   return new Promise((resolve) => {
     const mock = () => resolve({ text: mockOutput(), mock: true });
     // Only FIXED flags are argv; the prompt goes on stdin (see SECURITY above).
-    const child = spawn("claude", ["-p", "--output-format", "text"], { env, cwd });
+    // Isolation: without these flags the child inherits the operator's own Claude
+    // Code setup — global settings, plugins, MCP servers (mail, Slack, Jira…),
+    // memory — and app users' answers would be grounded in (and able to act
+    // through) the operator's personal tools. So: no user settings, no MCP, no
+    // tools at all — text in, text out. (The subscription login still identifies
+    // the operator's account; that's inherent to local-claude, which is why it is
+    // for your own machine only.)
+    const args = [
+      "-p",
+      "--output-format", "text",
+      "--setting-sources", "project",
+      "--strict-mcp-config",
+      "--tools", "",
+      // `=` form: the value can never be parsed as another flag, even if it
+      // starts with "-" (a module may put earlier chat turns in its system line).
+      `--system-prompt=${system}`,
+    ];
+    const child = spawn("claude", args, { env, cwd });
     let out = "";
     const timer = setTimeout(() => { child.kill("SIGKILL"); mock(); }, 120_000);
     child.stdout.on("data", (d) => {
@@ -119,7 +137,7 @@ function generateViaLocalClaude(params: {
       else mock(); // not logged in / non-zero / empty → mock
     });
     child.stdin.on("error", () => {}); // ignore EPIPE if the child exits early
-    child.stdin.end(input);
+    child.stdin.end(params.prompt);
   });
 }
 
@@ -133,8 +151,12 @@ function neutralDir(): string {
 }
 
 function mockOutput(): string {
-  if (BACKEND === "local-claude") {
-    return "[mock AI — AI_BACKEND=local-claude but `claude -p` failed: is Claude Code installed and logged in on this machine?] This is a placeholder answer so the module still works.";
-  }
-  return "[mock AI — set OPENROUTER_API_KEY in .env.local for real output] This is a placeholder answer so the module works without a key. With a key, your question is answered by Claude via OpenRouter.";
+  // Shown to people, so Slovenian and free of developer words. The "why" goes
+  // to the server log for whoever runs the app.
+  console.warn(
+    BACKEND === "local-claude"
+      ? "[ai] AI_BACKEND=local-claude but `claude -p` failed — is Claude Code installed and logged in?"
+      : "[ai] No OPENROUTER_API_KEY — returning a demo answer.",
+  );
+  return "Demo odgovor: AI še ni povezan, zato je to vzorčno besedilo. Ko ga skrbnik poveže, boš tu dobil pravi odgovor.";
 }
