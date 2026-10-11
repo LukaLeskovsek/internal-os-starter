@@ -11,6 +11,7 @@ import { AiAssistModule } from "@/modules/ai_assist/pages";
 import { InvoiceOcrModule } from "@/modules/invoice_ocr/pages";
 import { WorkOrdersModule } from "@/modules/work_orders/pages";
 import { TravelOrdersModule } from "@/modules/travel_orders/pages";
+import { LeaveModule } from "@/modules/leave/pages";
 import { EmptyState } from "@/components/app/empty-state";
 import { Button } from "@/components/ui/button";
 import { sl } from "@/lib/i18n/sl";
@@ -81,6 +82,8 @@ export default async function ModuleRouter({
       return <WorkOrdersModule searchParams={sp} />;
     case "travel_orders":
       return <TravelOrdersModule searchParams={sp} />;
+    case "leave":
+      return <LeaveModule searchParams={sp} />;
     default:
       notFound();
   }

@@ -13,6 +13,7 @@ import {
   ReceiptText,
   Settings2,
   Sparkles,
+  TreePalm,
   Wrench,
 } from "lucide-react";
 import type { ModuleDef } from "@/lib/modules";
@@ -47,6 +48,16 @@ export const MODULES: ModuleDef[] = [
     keywords: ["pot", "kilometrina", "km", "potni"],
     primaryAction: { label: "Nova pot", href: "/m/travel_orders?nov=1" },
     summary: () => import("./travel_orders/summary"),
+  },
+  {
+    id: "leave",
+    name: "Dopusti",
+    description: "Vnesi odsotnost v nekaj sekundah, dneve preštejemo sami.",
+    icon: TreePalm,
+    keywords: ["dopust", "bolniška", "odsotnost", "prost dan", "ekipa"],
+    primaryAction: { label: "Nova odsotnost", href: "/m/leave?nov=1" },
+    actions: [{ label: "Dodaj osebo", href: "/m/leave?tab=ekipa&nov=1" }],
+    summary: () => import("./leave/summary"),
   },
   {
     id: "ai_assist",
