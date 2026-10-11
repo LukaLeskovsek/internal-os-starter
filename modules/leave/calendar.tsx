@@ -36,6 +36,13 @@ type Mode = "move" | "start" | "end";
 type Drag = { id: string; mode: Mode; x: number; colWidth: number; delta: number; moved: boolean };
 type Range = { start: string; end: string };
 
+/** Days off get their own tint: grey weekends, red-letter holidays, blue company days. */
+const OFF_BG: Record<NonNullable<CalendarDay["off"]>, string> = {
+  weekend: "bg-muted",
+  holiday: "bg-destructive/10",
+  company: "bg-info/12",
+};
+
 const KIND_BAR: Record<Kind, string> = {
   dopust: "bg-primary text-primary-foreground",
   bolniska: "bg-warning/30 text-foreground ring-1 ring-inset ring-warning/60",
@@ -64,6 +71,8 @@ export function TeamCalendar({
   const scroller = useRef<HTMLDivElement>(null);
   const closed = useMemo(() => new Set(defaults.closed), [defaults.closed]);
 
+  // One entry per named run (a three-day company break shows once, on its first day).
+  const namedDays = days.filter((d, i) => d.name && d.name !== days[i - 1]?.name);
   const first = days[0].date;
   const last = days[days.length - 1].date;
   const n = days.length;
@@ -185,7 +194,7 @@ export function TeamCalendar({
               title={d.name}
               className={cn(
                 "flex flex-col items-center justify-center border-b py-1.5 text-center leading-tight",
-                d.off === "company" ? "bg-info/10" : d.off ? "bg-muted" : null,
+                d.off && OFF_BG[d.off],
               )}
             >
               <span className="text-[0.65rem] text-muted-foreground uppercase">{d.weekday}</span>
@@ -228,7 +237,7 @@ export function TeamCalendar({
                       style={{ gridColumn: col + 1, gridRow: 1 }}
                       className={cn(
                         "h-full outline-none transition-colors hover:bg-accent/60 focus-visible:bg-accent",
-                        d.off === "company" ? "bg-info/10" : d.off ? "bg-muted/70" : null,
+                        d.off && OFF_BG[d.off],
                       )}
                     />
                   ))}
@@ -283,16 +292,28 @@ export function TeamCalendar({
             {kindLabel[k]}
           </span>
         ))}
-        <span className="inline-flex items-center gap-2">
-          <span className="h-3 w-5 rounded bg-muted ring-1 ring-inset ring-foreground/10" />
-          {t.legendWeekend}
-        </span>
-        <span className="inline-flex items-center gap-2">
-          <span className="h-3 w-5 rounded bg-info/10 ring-1 ring-inset ring-foreground/10" />
-          {t.legendCompany}
-        </span>
+        {(["weekend", "holiday", "company"] as const).map((off) => (
+          <span key={off} className="inline-flex items-center gap-2">
+            <span className={cn("h-3 w-5 rounded ring-1 ring-inset ring-foreground/10", OFF_BG[off])} />
+            {t.legendOff[off]}
+          </span>
+        ))}
         <span className="max-md:hidden">{t.dragHint}</span>
       </div>
+
+      {/* The month's holidays and company days by name: readable without hovering, also on a phone. */}
+      {namedDays.length ? (
+        <ul className="mt-3 flex flex-wrap gap-2 px-1">
+          {namedDays.map((d) => (
+            <li
+              key={d.date}
+              className={cn("rounded-full px-3 py-1 text-sm", d.off && OFF_BG[d.off])}
+            >
+              <span className="font-medium">{formatDateShort(d.date)}</span> {d.name}
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       {editing ? (
         <EditAbsenceSheet

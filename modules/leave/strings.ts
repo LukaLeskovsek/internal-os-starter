@@ -18,8 +18,7 @@ export const t = {
   barLabel: (name: string, kind: string, range: string) => `${name}: ${kind}, ${range}`,
   newHere: (name: string, day: string) => `Nova odsotnost: ${name}, ${day}`,
   moved: (n: number) => `Odsotnost posodobljena · ${n} ${plural(n, workDaysWord)}.`,
-  legendWeekend: "Vikend ali praznik",
-  legendCompany: "Dela prost dan podjetja",
+  legendOff: { weekend: "Vikend", holiday: "Praznik", company: "Dela prost dan podjetja" },
 
   // Holidays
   holidaysTitle: (year: number) => `Prazniki ${year}`,
