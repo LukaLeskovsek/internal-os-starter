@@ -89,6 +89,13 @@ export function countWorkDays(from: string, to: string, clipFrom?: string, clipT
   return n;
 }
 
+/** `iso` itself if it is a work day, otherwise the next one (a Sunday → Monday). */
+export function firstWorkDayFrom(iso: string): string {
+  let t = toUtc(iso);
+  while (!isWorkDay(toIso(t))) t += DAY_MS;
+  return toIso(t);
+}
+
 /** Work days of a range that fall inside one calendar year (for the yearly balance). */
 export function workDaysInYear(from: string, to: string, year: number): number {
   return countWorkDays(from, to, `${year}-01-01`, `${year}-12-31`);

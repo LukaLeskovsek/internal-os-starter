@@ -31,7 +31,7 @@ Dodatno dejanje v ⌘K: **Dodaj osebo** (`/m/leave?tab=ekipa&nov=1`).
 ## Flow (fewest steps)
 1. **Nova odsotnost** (N) odpre sheet:
    - **Oseba**: čipi za 5 nazadnje uporabljenih oseb + izbirnik za ostale.
-   - **Od**: privzeto danes. **Do**: privzeto enako kot Od.
+   - **Od**: privzeto danes, ob vikendu ali prazniku naslednji delovni dan. **Do**: privzeto enako kot Od.
    - **Vrsta**: Dopust (privzeto) · Bolniška · Drugo.
    - **Opomba**: skrita pod „Dodaj opombo".
    - Število delovnih dni se kaže sproti („5 delovnih dni"), strežnik ga izračuna znova.

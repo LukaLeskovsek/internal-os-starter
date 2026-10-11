@@ -24,6 +24,7 @@ export type Absence = {
 /** What the absence sheet needs to guess well. Computed on the server. */
 export type AbsenceDefaults = {
   today: string; // YYYY-MM-DD in Ljubljana
+  start: string; // today, or the next work day on a weekend / holiday
   year: number; // the year the balance is for
   people: { id: string; name: string }[]; // everyone, A–Ž
   recentPeople: string[]; // ids, most recently entered first

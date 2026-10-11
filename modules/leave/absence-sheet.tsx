@@ -4,7 +4,8 @@
 // with everything we can guess already filled in, so the manager only taps.
 //
 //   - people are chips (the most recently entered first); the rest sit in a picker
-//   - "Od" and "Do" start on today; moving "Od" past "Do" drags "Do" along
+//   - "Od" and "Do" start on today (the next work day on a weekend or holiday);
+//     moving "Od" past "Do" drags "Do" along
 //   - kind defaults to Dopust
 //   - the work-day count and the days left update live; the server recomputes
 //   - the note hides behind "Dodaj opombo"
@@ -99,8 +100,8 @@ function AbsenceFields({ defaults, initial }: { defaults: AbsenceDefaults; initi
     initial?.person_id ?? (people.length === 1 ? people[0].id : ""),
   );
   const [kind, setKind] = useState<Kind>(initial?.kind ?? "dopust");
-  const [from, setFrom] = useState(initial?.start_date ?? defaults.today);
-  const [to, setTo] = useState(initial?.end_date ?? defaults.today);
+  const [from, setFrom] = useState(initial?.start_date ?? defaults.start);
+  const [to, setTo] = useState(initial?.end_date ?? defaults.start);
   const [showNote, setShowNote] = useState(!!initial?.note);
 
   // Chips: recently entered people first, then A–Ž; the rest go into the picker.
@@ -132,7 +133,8 @@ function AbsenceFields({ defaults, initial }: { defaults: AbsenceDefaults; initi
 
   return (
     <>
-      <Field label={t.person} name="person_id">
+      {/* The field error ("Izberi osebo") goes away as soon as a person is picked. */}
+      <Field label={t.person} name={personId ? undefined : "person_id"}>
         <input type="hidden" name="person_id" value={personId} />
         <div className="flex flex-wrap gap-2">
           {chips.map((p) => (

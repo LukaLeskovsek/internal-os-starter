@@ -31,7 +31,7 @@ import {
   todayIso,
 } from "@/lib/format";
 import { NewAbsenceSheet } from "./absence-sheet";
-import { countWorkDays, workDaysInYear } from "./lib/workdays";
+import { countWorkDays, firstWorkDayFrom, workDaysInYear } from "./lib/workdays";
 import { NewPersonSheet } from "./person-sheet";
 import { AbsenceActions, PersonActions } from "./row-actions";
 import { absencesWord, days, kindLabel, peopleWord, t, workDaysWord } from "./strings";
@@ -94,6 +94,7 @@ export async function LeaveModule({ searchParams }: ModuleProps) {
 
   const defaults: AbsenceDefaults = {
     today,
+    start: firstWorkDayFrom(today),
     year,
     people: people.map((p) => ({ id: p.id, name: p.full_name })),
     recentPeople: [...new Set((recentRes.data ?? []).map((r) => r.person_id as string))],
