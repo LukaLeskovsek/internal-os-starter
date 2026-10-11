@@ -7,13 +7,14 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export function DataList({ children, className }: { children: ReactNode; className?: string }) {
+export function DataList({ children, className, ...props }: React.ComponentProps<"ul">) {
   return (
     <ul
       className={cn(
         "divide-y overflow-hidden rounded-2xl bg-card shadow-xs ring-1 ring-foreground/8",
         className,
       )}
+      {...props}
     >
       {children}
     </ul>

@@ -4,6 +4,7 @@
 //
 //   const run = useActionToast();
 //   run(() => setStatus(id, "v_delu"), { undo: () => setStatus(id, "odprt") });
+//   run(() => repeatTrip(id), { undo: (res) => deleteTrip(res.data!.id) });  // undo gets the result
 //
 // Shows a success/error toast, optionally with "Razveljavi".
 import { useTransition } from "react";
@@ -16,7 +17,11 @@ export function useActionToast() {
 
   function run<T>(
     fn: () => Promise<ActionResult<T>>,
-    opts: { undo?: () => Promise<ActionResult<unknown>>; silent?: boolean; onSuccess?: (r: ActionResult<T>) => void } = {},
+    opts: {
+      undo?: (result: Extract<ActionResult<T>, { ok: true }>) => Promise<ActionResult<unknown>>;
+      silent?: boolean;
+      onSuccess?: (r: ActionResult<T>) => void;
+    } = {},
   ) {
     startTransition(async () => {
       const res = await fn();
@@ -32,7 +37,7 @@ export function useActionToast() {
               label: sl.common.undo,
               onClick: () => {
                 startTransition(async () => {
-                  const r = await opts.undo!();
+                  const r = await opts.undo!(res);
                   if (!r.ok) toast.error(r.error);
                 });
               },

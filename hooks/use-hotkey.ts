@@ -18,7 +18,8 @@ export function useHotkey(
       if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
       const t = e.target as HTMLElement | null;
       if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
-      if (document.querySelector("[role=dialog]") && key.length === 1) return;
+      // While a dialog/sheet is open, it owns the keyboard (incl. Escape).
+      if (document.querySelector("[role=dialog]")) return;
       if (e.key.toLowerCase() === key.toLowerCase()) {
         e.preventDefault();
         ref.current(e);

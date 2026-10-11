@@ -27,7 +27,7 @@ export const MODULES: ModuleDef[] = [
     icon: ReceiptText,
     keywords: ["likvidacija", "faktura", "ocr", "plačilo"],
     primaryAction: { label: "Naloži račune", href: "/m/invoice_ocr?nov=1" },
-    actions: [{ label: "Izvozi potrjene račune (CSV)", href: "/api/invoice_ocr/export" }],
+    actions: [{ label: "Izvozi račune (CSV)", href: "/api/invoice_ocr/export" }],
     summary: () => import("./invoice_ocr/summary"),
   },
   {

@@ -37,6 +37,18 @@ export function formatDateShort(value: DateInput): string {
   return d ? fmt({ day: "numeric", month: "short" }).format(d) : "—";
 }
 
+/** pon. (short) or ponedeljek (long) */
+export function formatWeekday(value: DateInput, style: "short" | "long" = "short"): string {
+  const d = toDate(value);
+  return d ? fmt({ weekday: style }).format(d) : "—";
+}
+
+/** 12 — the day of the month alone */
+export function formatDay(value: DateInput): string {
+  const d = toDate(value);
+  return d ? fmt({ day: "numeric" }).format(d).replace(".", "") : "—";
+}
+
 /** sobota, 11. oktober 2026 */
 export function formatDateLong(value: DateInput): string {
   const d = toDate(value);

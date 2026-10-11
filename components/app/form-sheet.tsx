@@ -7,7 +7,7 @@
 //            action={createTrip} submitLabel="Shrani pot" defaultOpen={sp.nov === "1"}>
 //   …fields…
 // </FormSheet>
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Sheet,
@@ -33,6 +33,8 @@ export function FormSheet({
   hotkey,
   open: openProp,
   onOpenChange,
+  onSuccess,
+  silent,
   children,
 }: {
   trigger?: React.ReactElement;
@@ -47,6 +49,11 @@ export function FormSheet({
   hotkey?: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Runs after a successful save (the sheet closes either way). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSuccess?: (result: { ok: true; message?: string; data?: any }) => void;
+  /** Skip the default success toast (e.g. you show your own in onSuccess). */
+  silent?: boolean;
   children: ReactNode;
 }) {
   const [ownOpen, setOwnOpen] = useState(defaultOpen);
@@ -66,6 +73,12 @@ export function FormSheet({
     }
   };
 
+  // A link to ?nov=1 on the same page (e.g. the EmptyState button) opens the sheet too.
+  const nov = params.get("nov") === "1";
+  useEffect(() => {
+    if (nov && defaultOpen !== false) setOwnOpen(true);
+  }, [nov, defaultOpen]);
+
   useHotkey(hotkey, () => setOpen(true), { enabled: !!hotkey && !open });
 
   return (
@@ -76,7 +89,14 @@ export function FormSheet({
           <SheetTitle>{title}</SheetTitle>
           {description ? <SheetDescription>{description}</SheetDescription> : null}
         </SheetHeader>
-        <ActionForm action={action} onSuccess={() => setOpen(false)} className="flex flex-1 flex-col px-5 pb-5">
+        <ActionForm
+          action={action}
+          silent={silent}
+          onSuccess={(r) => {
+            setOpen(false);
+            onSuccess?.(r);
+          }}
+          className="flex flex-1 flex-col px-5 pb-5">
           <div className="space-y-5">{children}</div>
           <div className="mt-auto flex gap-2 pt-6">
             <SubmitButton size="lg" className="flex-1" pendingText={pendingLabel}>

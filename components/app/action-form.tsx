@@ -81,7 +81,9 @@ export function ActionForm<T = any>({
           // onSubmit (not action=) so React doesn't wipe the inputs on a validation error.
           onSubmit={(e) => {
             e.preventDefault();
-            const fd = new FormData(e.currentTarget);
+            // Pass the clicked button so <button name="decision" value="…"> works.
+          const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLElement | null;
+          const fd = new FormData(e.currentTarget, submitter);
             startTransition(() => formAction(fd));
           }}
           {...props}
