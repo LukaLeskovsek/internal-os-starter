@@ -15,7 +15,16 @@ import { PageHeader } from "@/components/app/page-header";
 import { DataList, ListRow } from "@/components/app/data-list";
 import { EmptyState } from "@/components/app/empty-state";
 import { Button } from "@/components/ui/button";
-import { count, formatKm, formatMoney, formatMonth, formatRelative, todayIso } from "@/lib/format";
+import {
+  count,
+  formatDay,
+  formatKm,
+  formatMoney,
+  formatMonth,
+  formatRelative,
+  formatWeekday,
+  todayIso,
+} from "@/lib/format";
 import { RECENT_ROUTES } from "./constants";
 import { t, trips as tripsWord } from "./strings";
 import { NewTripSheet } from "./trip-sheet";
@@ -137,11 +146,14 @@ export async function TravelOrdersModule({ searchParams }: ModuleProps) {
 
 // ------------------------------------------------------------------ helpers
 
-/** The day of the month in a soft tile, so a month of trips scans by date. */
+/** Weekday + day of the month in a soft tile, so a month of trips scans by date. */
 function DayTile({ date }: { date: string }) {
   return (
-    <div className="grid size-11 place-items-center rounded-2xl bg-accent text-lg font-semibold text-accent-foreground tabular-nums">
-      {Number(date.slice(8, 10))}.
+    <div className="flex size-12 flex-col items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+      <span className="text-[0.7rem] leading-none font-medium uppercase opacity-75">
+        {formatWeekday(date)}
+      </span>
+      <span className="text-lg leading-tight font-semibold tabular-nums">{formatDay(date)}</span>
     </div>
   );
 }
