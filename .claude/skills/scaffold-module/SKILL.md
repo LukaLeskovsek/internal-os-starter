@@ -1,6 +1,6 @@
 ---
 name: scaffold-module
-description: Create a new tool-module in this internal-OS repo from the job-first template. Use when the user says "/scaffold-module", "add a module", "new module", or names a tool they want behind the app's single sign-in.
+description: Create a new tool-module in this internal-OS repo from the job-first template. Use when the user says "/scaffold-module", "add a module", "new module", or names a tool they want behind the app's single sign-in. Also in Slovenian: "novo orodje", "nov modul", "dodaj orodje za…".
 ---
 
 When invoked, create a new module the rails-compliant way. Never hand-create module folders — this skill is the path of least resistance so a clean modular monolith stays clean, and every new tool starts as a **tool for a person**, not as a table editor.

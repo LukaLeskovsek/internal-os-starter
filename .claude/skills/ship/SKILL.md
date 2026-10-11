@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Close the loop — get the verified change live and confirm it actually works in production. Use when the user says "/ship", "deploy", "push it live", or after a passing /verify.
+description: Close the loop — get the verified change live and confirm it actually works in production. Use when the user says "/ship", "deploy", "push it live", or after a passing /verify. Also in Slovenian: "daj v živo", "objavi", "deploy", "pokaži ekipi".
 ---
 
 When invoked, get the change to a working public URL — and **confirm** it, don't assume it.

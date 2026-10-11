@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Shape a feature idea into a small, ordered build plan before any code, starting from the person's job, not the database. Use when the user says "/plan", "plan this", "I want to add…", or describes a feature or change. Writes no code.
+description: Shape a feature idea into a small, ordered build plan before any code, starting from the person's job, not the database. Use when the user says "/plan", "plan this", "I want to add…", or describes a feature or change. Writes no code. Also in Slovenian: "rad bi…", "potrebujem orodje za…", "ideja", "kako bi naredili…", "spremeni, da…".
 ---
 
 When invoked, turn the user's idea into the smallest sensible plan — then stop. Do not write code; `/build` does that.

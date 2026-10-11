@@ -1,6 +1,6 @@
 ---
 name: check-architecture
-description: Audit the current changes against this repo's modular-monolith rules and its design & UX rules. Use when the user says "/check-architecture", after scaffolding a module, or before committing.
+description: Audit the current changes against this repo's modular-monolith rules and its design & UX rules. Use when the user says "/check-architecture", after scaffolding a module, or before committing. Also in Slovenian: "preveri pravila", "je vse po pravilih?".
 ---
 
 When invoked, review the working changes (run `git diff` and read the changed files) and report violations — each with the file/line and a concrete fix.

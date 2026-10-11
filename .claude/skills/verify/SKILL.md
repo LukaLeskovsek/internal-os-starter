@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Prove the change actually works for the person — walk the real flow, count the clicks, check both themes and phone size, and check access control. Use when the user says "/verify", "does it work", "test it", or after /build. Reports concrete pass/fail.
+description: Prove the change actually works for the person — walk the real flow, count the clicks, check both themes and phone size, and check access control. Use when the user says "/verify", "does it work", "test it", or after /build. Reports concrete pass/fail. Also in Slovenian: "ali dela?", "preveri", "testiraj", "poglej, če deluje".
 ---
 
 When invoked, don't *say* it works — *show* it. Run the app, walk the Card's flow as the person would, check access control, and report what you observed.

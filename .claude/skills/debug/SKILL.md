@@ -1,6 +1,6 @@
 ---
 name: debug
-description: Find and fix the real cause when something breaks — without thrashing. Use when the user says "/debug", "it's broken", "this error", pastes an error, or after a failed /verify.
+description: Find and fix the real cause when something breaks — without thrashing. Use when the user says "/debug", "it's broken", "this error", pastes an error, or after a failed /verify. Also in Slovenian: "ne dela", "napaka", "se ne naloži", "je počasno", "vrže error".
 ---
 
 When invoked, work the problem methodically. The enemy is guessing and changing many things at once.

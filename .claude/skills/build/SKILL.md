@@ -1,6 +1,6 @@
 ---
 name: build
-description: Execute one slice of the plan — build the person's flow first, then the storage it needs, keep it green, commit. Use when the user says "/build", "build it", "do the next slice", or after /plan. One slice at a time.
+description: Execute one slice of the plan — build the person's flow first, then the storage it needs, keep it green, commit. Use when the user says "/build", "build it", "do the next slice", or after /plan. One slice at a time. Also in Slovenian: "naredi", "gremo", "zgradi", "naslednji korak", "ja, tako".
 ---
 
 When invoked, implement **one** slice (the next one from `/plan`) inside the repo's rules — not the whole plan.

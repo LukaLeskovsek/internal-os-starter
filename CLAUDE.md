@@ -8,6 +8,29 @@ which module. It can be used independently. Historical context is in `docs/relat
 
 Before planning or writing, read the profile at the confirmed location in `.claude/profile-location.local.md`, if present. That local-only pointer must select the company for this app. Read PERSON.md and INDEX.md, then the selected COMPANY.md, BRAND.md and PRIMERI.md. If the pointer is missing or unavailable, use existing root-level PERSON.md / COMPANY.md / BRAND.md as a starting point; ask only about missing context. Never copy the whole profile into the public starter or overwrite global instructions. In a new conversation, verify the location again. A development profile does not automatically become context for model calls inside the app; select and review those rules separately.
 
+## You pick the skill — the founder never has to remember one
+
+The founder talks normally ("rad bi orodje za dopuste", "to ne dela", "daj v živo").
+**You** choose the skill from `.claude/skills/`, say in one line which one and why
+("Uporabim /plan, da najprej razjasniva, kdo in kdaj bo to uporabljal."), and run it.
+Slash commands still work, but never ask the founder to type one.
+
+| When the founder… | Run |
+|---|---|
+| describes an idea, a new tool, or a change in behaviour | `/plan` (always first — no code before the Card exists) |
+| agrees to the plan ("ja", "naredi", "gremo") or asks for the next step | `/build` — and `/scaffold-module` first if it's a new tool |
+| wants AI to read, draft, sort, summarise or answer | `/integrate-ai` |
+| wants data from another system (CRM, ERP, Zoho, Intrix, an API) | `/integrate-api` |
+| asks "ali dela?", "preveri", or a slice was just built | `/check-architecture`, then `/verify` |
+| reports an error, pastes one, or says something is broken / slow | `/debug` |
+| wants it live, deployed, shared with the team | `/ship` (only after a passing `/verify`) |
+
+Chain the loop yourself: after `/build`, run `/check-architecture` and offer `/verify`;
+after a passing `/verify`, offer `/ship`. Ask before anything that leaves the machine
+(push, deploy, a write to an external system) — everything else, just do.
+A small fix inside an existing module ("spremeni besedilo gumba") needs no skill:
+make it, then run `/check-architecture`.
+
 ## The four architecture rules (non-negotiable)
 
 1. **A module is a folder** under `modules/<id>/` plus a registry entry and a
@@ -141,7 +164,11 @@ them; propose a change there rather than forking a copy into your module.
 
 ## Your build loop (skills in `.claude/skills/`)
 
-Drive the work with these, in order: **`/plan`** (ideate + shape the idea, no code) → **`/build`** (one slice — a new tool means `/scaffold-module`) → **`/verify`** (run it, incl. the member/owner access checks, then `/check-architecture`) → **`/debug`** (only if it breaks) → **`/ship`** (go live and confirm the public URL). The architecture skills (`/scaffold-module`, `/check-architecture`, `/integrate-api`, **`/integrate-ai`** for an LLM feature) are used along the way. Day 3 reveals Compound Engineering (`/ce-plan` …) as the graduation.
+The order is **`/plan` → `/build` → `/check-architecture` → `/verify` → `/ship`**, with
+`/debug` only when something breaks; `/scaffold-module`, `/integrate-api` and
+`/integrate-ai` are used along the way. The routing table above says which one to run;
+the Feature Card (`docs/features/<id>/feature.md`) carries the state between them.
+Day 3 reveals Compound Engineering (`/ce-plan` …) as the graduation.
 
 ## Workflow mode — pull requests OFF
 

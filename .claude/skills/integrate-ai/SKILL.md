@@ -1,6 +1,6 @@
 ---
 name: integrate-ai
-description: Add AI to a module — a server-side LLM call via lib/ai.ts. Use when the user says "/integrate-ai", "add AI", "make it summarize/draft/classify/answer", or wants an LLM inside a module. Models on the ai_assist module.
+description: Add AI to a module — a server-side LLM call via lib/ai.ts. Use when the user says "/integrate-ai", "add AI", "make it summarize/draft/classify/answer", or wants an LLM inside a module. Models on the ai_assist module. Also in Slovenian: "naj AI prebere / povzame / napiše / razvrsti", "dodaj AI".
 ---
 
 When invoked, add one AI capability to a module the smallest useful way, server-side, storing results in the module's own prefixed RLS table. AI should **remove typing and decisions from the person's flow**, not add a new screen to visit. Worked examples: `ai_assist` (ask → answer) and `invoice_ocr` (file → AI extracts → the person corrects and approves).

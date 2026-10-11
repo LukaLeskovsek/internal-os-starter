@@ -1,6 +1,6 @@
 ---
 name: integrate-api
-description: Add a read-only external API integration to a module, modeled on the Intrix reference. Use when the user says "/integrate-api", "connect an API", or wants a module to pull data from an external service.
+description: Add a read-only external API integration to a module, modeled on the Intrix reference. Use when the user says "/integrate-api", "connect an API", or wants a module to pull data from an external service. Also in Slovenian: "poveži z…", "potegni podatke iz…", "Zoho", "Intrix", "ERP", "CRM".
 ---
 
 When invoked, add a server-side API client to an existing module — read path first.
