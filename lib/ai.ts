@@ -13,6 +13,7 @@
 import "server-only";
 import OpenAI from "openai";
 import { spawn } from "node:child_process";
+import { tmpdir } from "node:os";
 
 // Cheap + fast default for a workshop (the key is capped). Verify the current slug
 // at openrouter.ai/models; bump to a stronger Claude model if you want.
@@ -95,8 +96,9 @@ function generateViaLocalClaude(params: {
 
   // Optional: point AI_BRAIN_DIR at a company-brain folder and Claude auto-loads
   // that folder's CLAUDE.md / PERSON / COMPANY / BRAND as grounding. Omit to run
-  // without it (don't point it at this app's root — that loads the dev rules).
-  const cwd = process.env.AI_BRAIN_DIR || undefined;
+  // without it. Never default to this app's root (the server's cwd) — that loads
+  // the dev rules in CLAUDE.md into every answer — so blank means a neutral tmpdir.
+  const cwd = process.env.AI_BRAIN_DIR || tmpdir();
 
   return new Promise((resolve) => {
     const mock = () => resolve({ text: mockOutput(), mock: true });
@@ -120,5 +122,8 @@ function generateViaLocalClaude(params: {
 }
 
 function mockOutput(): string {
+  if (BACKEND === "local-claude") {
+    return "[mock AI — AI_BACKEND=local-claude but `claude -p` failed: is Claude Code installed and logged in on this machine?] This is a placeholder answer so the module still works.";
+  }
   return "[mock AI — set OPENROUTER_API_KEY in .env.local for real output] This is a placeholder answer so the module works without a key. With a key, your question is answered by Claude via OpenRouter.";
 }
