@@ -15,6 +15,12 @@ When invoked, work the problem methodically. The enemy is guessing and changing 
 3. **Isolate** — narrow to the smallest cause. Form one hypothesis; change **one** thing.
 4. **Fix** that one thing, then re-run `/verify`.
 
+## Known traps in this repo (check these first)
+- **Page shows stale or half-built output after `npm run build`:** a build ran while `npm run dev` was running — both write `.next`. Stop dev, `rm -rf .next`, start dev again.
+- **Dev server rebuilding every second, high CPU, saves that never arrive:** something is writing files into the repo (tool logs, reports). Make sure the folder is ignored in `next.config.ts` (`watchOptions.ignored`) and in `app/globals.css` (`@source not`).
+- **AI answers are a "Demo odgovor" / invoices read as the sample:** no `OPENROUTER_API_KEY` and `AI_BACKEND` isn't `local-claude` (or `claude` isn't logged in) — the server log says which (`[ai] …`).
+- **A module or its tile is missing / "Do tega orodja nimaš dostopa":** the module's migration wasn't run, or the user isn't granted it in Administracija → Dostopi, or it's switched off in Orodja.
+
 ## Rules
 - One variable at a time. If you change five things and it works, you've learned nothing.
 - **Two failed attempts → STOP and reset:** restate the current state, the goal, and the problem; shrink to the smallest next step; try again. Don't spiral.
