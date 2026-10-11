@@ -1,5 +1,8 @@
 "use client";
 
+// "Are you sure?" before permanently deleting an account. Opened from the row
+// menu, so it is controlled (open / onOpenChange) rather than having a trigger.
+import { Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -8,45 +11,52 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { SubmitButton } from "@/components/ui/submit-button";
+import { useActionToast } from "@/hooks/use-action-toast";
+import { sl } from "@/lib/i18n/sl";
 import { deleteUser } from "./actions";
+import { s } from "./strings";
 
 export function ConfirmDeleteUser({
   userId,
   label,
+  open,
+  onOpenChange,
+  onDeleted,
 }: {
   userId: string;
   label: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onDeleted?: () => void;
 }) {
+  const run = useActionToast();
   return (
-    <AlertDialog>
-      <AlertDialogTrigger
-        render={
-          <Button variant="destructive" size="sm">
-            Delete
-          </Button>
-        }
-      />
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete {label}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This permanently removes the account and all of their data. This
-            cannot be undone.
-          </AlertDialogDescription>
+          <AlertDialogTitle>{s.deleteTitle(label)}</AlertDialogTitle>
+          <AlertDialogDescription>{s.deleteText}</AlertDialogDescription>
         </AlertDialogHeader>
-        <form action={deleteUser}>
-          <input type="hidden" name="user_id" value={userId} />
-          <AlertDialogFooter>
-            <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
-            <SubmitButton variant="destructive" size="sm" pendingText="Deleting…">
-              Delete
-            </SubmitButton>
-          </AlertDialogFooter>
-        </form>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{sl.common.cancel}</AlertDialogCancel>
+          <Button
+            variant="destructive"
+            disabled={run.pending}
+            onClick={() =>
+              run(() => deleteUser(userId), {
+                onSuccess: () => {
+                  onOpenChange(false);
+                  onDeleted?.();
+                },
+              })
+            }
+          >
+            {run.pending ? <Loader2 className="animate-spin" /> : null}
+            {run.pending ? s.deleting : s.delete}
+          </Button>
+        </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );

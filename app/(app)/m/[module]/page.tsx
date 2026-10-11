@@ -1,32 +1,37 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { Lock, PowerOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { userCanAccess, moduleIsEnabled } from "@/lib/access";
 import { getModule } from "@/modules/_registry";
+import type { ModuleSearchParams } from "@/lib/modules";
 import { AdminModule } from "@/modules/admin/pages";
 import { CrmDemoModule } from "@/modules/crm_demo/pages";
 import { AiAssistModule } from "@/modules/ai_assist/pages";
 import { InvoiceOcrModule } from "@/modules/invoice_ocr/pages";
 import { WorkOrdersModule } from "@/modules/work_orders/pages";
 import { TravelOrdersModule } from "@/modules/travel_orders/pages";
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { EmptyState } from "@/components/app/empty-state";
+import { Button } from "@/components/ui/button";
+import { sl } from "@/lib/i18n/sl";
+
+export async function generateMetadata({ params }: { params: Promise<{ module: string }> }) {
+  const def = getModule((await params).module);
+  return { title: def?.name };
+}
 
 // The single module router. One guard, one place: access is enforced HERE,
 // server-side, on every request — a member cannot reach a module by URL.
-// DONE — do not modify the guard. Add new modules to the switch below.
+// Keep the guard as it is. Add new modules to the switch below.
 export default async function ModuleRouter({
   params,
   searchParams,
 }: {
   params: Promise<{ module: string }>;
-  searchParams: Promise<{ id?: string }>;
+  searchParams: Promise<ModuleSearchParams>;
 }) {
   const { module } = await params;
-  const { id } = await searchParams;
+  const sp = await searchParams;
 
   const def = getModule(module);
   if (!def) notFound();
@@ -40,45 +45,42 @@ export default async function ModuleRouter({
   const allowed = await userCanAccess(supabase, user.id, module);
   if (!allowed) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>No access</CardTitle>
-          <CardDescription>
-            You don&rsquo;t have access to &ldquo;{def.name}&rdquo;. Ask your
-            workspace owner to grant it in Admin.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <EmptyState
+        icon={Lock}
+        title={sl.errors.noAccess}
+        action={<Button render={<Link href="/home" />}>{sl.errors.backHome}</Button>}
+      >
+        {sl.errors.noAccessText}
+      </EmptyState>
     );
   }
 
   // A module the owner has switched off is blocked even for granted users.
   if (!(await moduleIsEnabled(supabase, module))) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Unavailable</CardTitle>
-          <CardDescription>
-            &ldquo;{def.name}&rdquo; is currently turned off by your workspace owner.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <EmptyState
+        icon={PowerOff}
+        title={sl.errors.moduleOff}
+        action={<Button render={<Link href="/home" />}>{sl.errors.backHome}</Button>}
+      >
+        {sl.errors.moduleOffText}
+      </EmptyState>
     );
   }
 
   switch (module) {
     case "admin":
-      return <AdminModule />;
+      return <AdminModule searchParams={sp} />;
     case "crm_demo":
-      return <CrmDemoModule selectedId={id} />;
+      return <CrmDemoModule searchParams={sp} />;
     case "ai_assist":
-      return <AiAssistModule />;
+      return <AiAssistModule searchParams={sp} />;
     case "invoice_ocr":
-      return <InvoiceOcrModule selectedId={id} />;
+      return <InvoiceOcrModule searchParams={sp} />;
     case "work_orders":
-      return <WorkOrdersModule selectedId={id} />;
+      return <WorkOrdersModule searchParams={sp} />;
     case "travel_orders":
-      return <TravelOrdersModule selectedId={id} />;
+      return <TravelOrdersModule searchParams={sp} />;
     default:
       notFound();
   }

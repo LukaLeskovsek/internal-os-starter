@@ -1,280 +1,188 @@
+// work_orders: the "dispatch" pattern.
+//
+// Job: "The office hands a job to someone; that person sees it on their phone,
+// starts it and closes it." So the page opens on what concerns you (Moji, when
+// something is assigned to you), every row carries its next step as one tap,
+// "Nov nalog" (N, ?nov=1) is three answers, and ?id= opens the order in a sheet
+// over the list. Data loads here; the interactive pieces are client components.
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ClipboardCheck, Plus } from "lucide-react";
+import type { ModuleProps } from "@/lib/modules";
 import { createClient } from "@/lib/supabase/server";
-import { listUsers } from "@/lib/access";
+import { listModuleMembers } from "@/lib/access";
+import { PageHeader } from "@/components/app/page-header";
+import { FilterChips } from "@/components/app/filter-chips";
+import { DataList } from "@/components/app/data-list";
+import { EmptyState } from "@/components/app/empty-state";
+import { DetailSheet } from "@/components/app/detail-sheet";
+import { Button } from "@/components/ui/button";
+import { formatDate, formatRelative } from "@/lib/format";
 import { listCustomers } from "./lib/zoho";
-import { createWorkOrder, setWorkOrderStatus } from "./actions";
-import { SubmitButton } from "@/components/ui/submit-button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FILTERS, t, type Filter } from "./strings";
+import { NewOrderSheet } from "./new-order-sheet";
+import { OrderRow } from "./order-row";
+import { OrderDetail } from "./order-detail";
+import type { CustomerOption, OrderRowData, PersonOption, WorkOrder } from "./types";
 
-type Status = "odprt" | "v_delu" | "zakljucen";
+const BASE = "/m/work_orders";
+const COLS =
+  "id, user_id, assignee_id, zoho_customer_id, customer_name, title, description, status, created_at, updated_at";
+const RECENT_CUSTOMERS = 5;
 
-type WorkOrder = {
-  id: string;
-  user_id: string;
-  assignee_id: string | null;
-  zoho_customer_id: string | null;
-  customer_name: string | null;
-  title: string;
-  description: string | null;
-  status: Status;
-  created_at: string;
+/** Which orders each filter chip shows. */
+const MATCHES: Record<Filter, (o: WorkOrder, me: string) => boolean> = {
+  moji: (o, me) => o.assignee_id === me && o.status !== "zakljucen",
+  odprti: (o) => o.status === "odprt",
+  v_delu: (o) => o.status === "v_delu",
+  zakljuceni: (o) => o.status === "zakljucen",
 };
 
-const SELECT_COLS =
-  "id, user_id, assignee_id, zoho_customer_id, customer_name, title, description, status, created_at";
-
-// The three states, with Slovenian labels + a badge variant each. The order is the
-// natural lifecycle, reused for the status buttons on the detail screen.
-const STATUS_FLOW: Status[] = ["odprt", "v_delu", "zakljucen"];
-const STATUS: Record<
-  Status,
-  { label: string; variant: "outline" | "secondary" | "default" }
-> = {
-  odprt: { label: "Odprt", variant: "outline" },
-  v_delu: { label: "V delu", variant: "secondary" },
-  zakljucen: { label: "Zaključen", variant: "default" },
+const EMPTY: Record<Filter, { title: string; text: string }> = {
+  moji: { title: t.emptyMine, text: t.emptyMineText },
+  odprti: { title: t.emptyOpen, text: t.emptyOpenText },
+  v_delu: { title: t.emptyInProgress, text: t.emptyInProgressText },
+  zakljuceni: { title: t.emptyDone, text: t.emptyDoneText },
 };
 
-// Native <select>, styled to match the Input. shadcn has no Select primitive here,
-// and a native control is the most mobile-friendly (uses the OS picker on phones).
-const selectClass =
-  "flex h-9 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
-
-function userLabel(u: { full_name: string | null; email: string | null; id: string }) {
-  return u.full_name || u.email || u.id.slice(0, 8);
-}
-
-// Module entry: the list (with the create form), or a single work order when ?id= is set.
-export async function WorkOrdersModule({ selectedId }: { selectedId?: string }) {
-  return selectedId ? <WorkOrderDetail id={selectedId} /> : <WorkOrderList />;
-}
-
-// ---------------------------------------------------------------- list view
-async function WorkOrderList() {
+export async function WorkOrdersModule({ searchParams }: ModuleProps) {
   const supabase = await createClient();
-  // RLS scopes this to rows where the user is creator OR assignee.
-  const { data } = await supabase
-    .from("work_orders_orders")
-    .select(SELECT_COLS)
-    .order("created_at", { ascending: false });
-  const orders = (data ?? []) as WorkOrder[];
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const me = user?.id ?? "";
 
-  const users = await listUsers(supabase);
-  const nameById = new Map(users.map((u) => [u.id, userLabel(u)]));
-  const { customers, mock } = await listCustomers();
+  // RLS returns only orders where I'm the creator or the assignee.
+  const [ordersRes, members, zoho] = await Promise.all([
+    supabase.from("work_orders_orders").select(COLS).order("created_at", { ascending: false }),
+    listModuleMembers(supabase, "work_orders"),
+    listCustomers().catch(() => ({ customers: [], mock: false })),
+  ]);
+  const all = (ordersRes.data ?? []) as WorkOrder[];
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">Delovni nalogi</h1>
-          {mock ? <Badge variant="secondary">Zoho: mock</Badge> : null}
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Pisarna ustvari nalog in ga dodeli izvajalcu; izvajalec ga na telefonu
-          premika skozi statuse do zaključka.
-        </p>
-      </div>
+  // ---- people: names for rows, options for the pickers
+  const nameOf = new Map(members.map((m) => [m.id, m.full_name || m.email || t.formerColleague]));
+  const personLabel = (id: string | null) =>
+    !id ? t.unassigned : id === me ? t.you : (nameOf.get(id) ?? t.formerColleague);
+  const people: PersonOption[] = members.map((m) => ({
+    value: m.id,
+    label: m.id === me ? `${nameOf.get(m.id)} (${t.you.toLowerCase()})` : nameOf.get(m.id)!,
+  }));
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Nov delovni nalog</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form action={createWorkOrder} className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="title">Naslov</Label>
-              <Input id="title" name="title" required maxLength={200} placeholder="npr. Servis klime — pisarna 2. nadstropje" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="zoho_customer_id">Stranka (Zoho)</Label>
-              <select id="zoho_customer_id" name="zoho_customer_id" className={selectClass} defaultValue="">
-                <option value="">— brez stranke —</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                    {c.city ? ` · ${c.city}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="assignee_id">Izvajalec</Label>
-              <select id="assignee_id" name="assignee_id" required className={selectClass} defaultValue="">
-                <option value="" disabled>
-                  — izberi izvajalca —
-                </option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {userLabel(u)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="description">Opis (neobvezno)</Label>
-              <textarea
-                id="description"
-                name="description"
-                rows={3}
-                maxLength={4000}
-                placeholder="Podrobnosti naloga, navodila za teren…"
-                className="flex w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <SubmitButton className="w-full sm:w-auto" pendingText="Shranjujem…">
-                Ustvari nalog
-              </SubmitButton>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+  // ---- filter: default to "Moji" when something is waiting for me
+  const mineCount = all.filter((o) => MATCHES.moji(o, me)).length;
+  const requested = FILTERS.find((f) => f.value === searchParams.f)?.value;
+  const filter: Filter = requested ?? (mineCount ? "moji" : "odprti");
+  const shown = all.filter((o) => MATCHES[filter](o, me));
+  // In "Moji", what's already in progress comes first.
+  if (filter === "moji") shown.sort((a, b) => Number(b.status === "v_delu") - Number(a.status === "v_delu"));
+  const listHref = `${BASE}?f=${filter}`;
 
-      <div className="space-y-3">
-        <h2 className="text-sm font-medium text-muted-foreground">Nalogi</h2>
-        {orders.length > 0 ? (
-          <div className="space-y-2">
-            {orders.map((o) => {
-              const st = STATUS[o.status] ?? STATUS.odprt;
-              return (
-                <Link key={o.id} href={`/m/work_orders?id=${o.id}`} className="group block">
-                  <Card size="sm" className="transition group-hover:ring-foreground/25">
-                    <CardContent className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{o.title}</div>
-                        <div className="mt-0.5 truncate text-sm text-muted-foreground">
-                          {o.customer_name ?? "Brez stranke"}
-                          {" · "}
-                          {o.assignee_id ? (nameById.get(o.assignee_id) ?? "—") : "ni dodeljen"}
-                        </div>
-                      </div>
-                      <Badge variant={st.variant} className="shrink-0">
-                        {st.label}
-                      </Badge>
-                    </CardContent>
-                  </Card>
-                </Link>
-              );
-            })}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              Še ni nalogov. Ustvari prvega zgoraj.
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </div>
-  );
-}
+  const rows: OrderRowData[] = shown.map((o) => ({
+    id: o.id,
+    title: o.title,
+    status: o.status,
+    meta: [o.customer_name ?? t.noCustomer, personLabel(o.assignee_id), formatRelative(o.created_at)].join(" · "),
+    href: `${listHref}&id=${o.id}`,
+  }));
 
-// -------------------------------------------------------------- detail view
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-sm whitespace-pre-wrap">{value}</div>
-    </div>
-  );
-}
+  // ---- the new-order sheet's guesses, from orders I created (newest first)
+  const mineCreated = all.filter((o) => o.user_id === me);
+  const recentIds = [...new Set(mineCreated.map((o) => o.zoho_customer_id).filter(Boolean))].slice(
+    0,
+    RECENT_CUSTOMERS,
+  ) as string[];
+  const customers: CustomerOption[] = [
+    ...recentIds.flatMap((id) => zoho.customers.filter((c) => c.id === id)),
+    ...zoho.customers
+      .filter((c) => !recentIds.includes(c.id))
+      .sort((a, b) => a.name.localeCompare(b.name, "sl")),
+  ].map((c) => ({ value: c.id, label: c.name, city: c.city, recent: recentIds.includes(c.id) }));
+  const lastAssignee = mineCreated.find((o) => o.assignee_id && nameOf.has(o.assignee_id))?.assignee_id;
+  const defaultAssignee = lastAssignee ?? (nameOf.has(me) ? me : people[0]?.value);
 
-function BackLink() {
-  return (
-    <Link
-      href="/m/work_orders"
-      className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-    >
-      <ArrowLeft className="size-4" /> Nazaj na seznam
-    </Link>
-  );
-}
+  // ---- detail sheet (?id=)
+  const selected = searchParams.id ? all.find((o) => o.id === searchParams.id) : undefined;
 
-async function WorkOrderDetail({ id }: { id: string }) {
-  const supabase = await createClient();
-  // RLS: returns the row only if the user is its creator or assignee.
-  const { data } = await supabase
-    .from("work_orders_orders")
-    .select(SELECT_COLS)
-    .eq("id", id)
-    .maybeSingle();
-  const order = data as WorkOrder | null;
-
-  if (!order) {
-    return (
-      <div className="space-y-5">
-        <BackLink />
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Nalog ni najden (ali nimaš dostopa).
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const users = await listUsers(supabase);
-  const nameById = new Map(users.map((u) => [u.id, userLabel(u)]));
-  const st = STATUS[order.status] ?? STATUS.odprt;
+  const opensNew = searchParams.nov === "1";
+  const empty = EMPTY[filter];
 
   return (
-    <div className="space-y-5">
-      <BackLink />
-
-      <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">{order.title}</h1>
-        <Badge variant={st.variant}>{st.label}</Badge>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Podatki naloga</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4">
-          <Field label="Stranka" value={order.customer_name ?? "—"} />
-          <Field
-            label="Izvajalec"
-            value={order.assignee_id ? (nameById.get(order.assignee_id) ?? "—") : "ni dodeljen"}
+    <div className="max-sm:pb-24">
+      <PageHeader
+        title={t.title}
+        description={t.description}
+        actions={
+          <NewOrderSheet
+            defaultOpen={opensNew}
+            customers={customers}
+            customersAreDemo={zoho.mock}
+            people={people}
+            defaultAssignee={defaultAssignee}
           />
-          <div className="col-span-2">
-            <Field label="Opis" value={order.description ?? "—"} />
-          </div>
-        </CardContent>
-      </Card>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Status</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* One small form per target status — robust regardless of button value
-              forwarding. The current status is disabled. Stacks on mobile. */}
-          <div className="flex flex-col gap-2 sm:flex-row">
-            {STATUS_FLOW.map((s) => {
-              const isCurrent = s === order.status;
-              return (
-                <form key={s} action={setWorkOrderStatus} className="sm:flex-1">
-                  <input type="hidden" name="id" value={order.id} />
-                  <input type="hidden" name="status" value={s} />
-                  <SubmitButton
-                    className="w-full"
-                    variant={isCurrent ? "default" : "outline"}
-                    disabled={isCurrent}
-                    pendingText="Shranjujem…"
-                  >
-                    {STATUS[s].label}
-                  </SubmitButton>
-                </form>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+      <FilterChips
+        base={BASE}
+        value={filter}
+        options={FILTERS.map((f) => ({
+          value: f.value,
+          label: f.label,
+          count: all.filter((o) => MATCHES[f.value](o, me)).length,
+        }))}
+      />
+
+      {rows.length ? (
+        <DataList>
+          {rows.map((r) => (
+            <OrderRow key={r.id} order={r} />
+          ))}
+        </DataList>
+      ) : (
+        <EmptyState
+          icon={ClipboardCheck}
+          title={empty.title}
+          action={
+            <Button size="lg" render={<Link href={`${listHref}&nov=1`} scroll={false} />}>
+              <Plus />
+              {t.newOrder}
+            </Button>
+          }
+        >
+          {empty.text}
+        </EmptyState>
+      )}
+
+      {searchParams.id ? (
+        selected ? (
+          <OrderDetail
+            key={selected.id}
+            closeHref={listHref}
+            // Keep a former colleague selectable as "who has it now", never as a raw id.
+            people={
+              selected.assignee_id && !nameOf.has(selected.assignee_id)
+                ? [...people, { value: selected.assignee_id, label: t.formerColleague }]
+                : people
+            }
+            order={{
+              id: selected.id,
+              title: selected.title,
+              description: selected.description,
+              status: selected.status,
+              assigneeId: selected.assignee_id,
+              assigneeLabel: personLabel(selected.assignee_id),
+              customerLabel: selected.customer_name ?? t.noCustomer,
+              creatorLabel: personLabel(selected.user_id),
+              createdLabel: formatDate(selected.created_at),
+              isCreator: selected.user_id === me,
+            }}
+          />
+        ) : (
+          <DetailSheet title={t.notFound} closeHref={listHref}>
+            <p className="text-muted-foreground">{t.notFoundText}</p>
+          </DetailSheet>
+        )
+      ) : null}
     </div>
   );
 }

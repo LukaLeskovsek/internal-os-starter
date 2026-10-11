@@ -1,101 +1,179 @@
 "use server";
 
-// work_orders write paths. Mirrors invoice_ocr/actions.ts: validate → re-check
-// userCanAccess (a member without the module can't drive it by posting directly) →
-// write the module's PREFIXED, RLS-scoped table → revalidate. RLS guarantees a user
-// can only touch rows where they are the creator OR the assignee.
+// work_orders write paths ("dispatch" pattern). Every action starts with
+// moduleContext(), validates with zod, writes the module's own RLS-scoped table,
+// revalidates and returns an ActionResult for the toast.
+//
+// RLS lets the creator OR the assignee read and write a row. On top of that the
+// actions enforce two rules RLS doesn't express:
+//   - only the creator may delete a work order
+//   - only the creator may reassign it (an assignee handing it to someone else
+//     would also fail RLS's WITH CHECK, so we say so clearly instead)
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
-import { userCanAccess } from "@/lib/access";
+import { fail, fromZod, ok, type ActionResult } from "@/lib/action-result";
+import { moduleContext } from "@/lib/module-context";
+import { listModuleMembers } from "@/lib/access";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { listCustomers } from "./lib/zoho";
+import { STATUS, STATUSES, t, type Status } from "./strings";
 
 const MODULE = "work_orders";
 const BASE = `/m/${MODULE}`;
-const UUID = /^[0-9a-fA-F-]{36}$/;
+const TABLE = "work_orders_orders";
 
-function fail(message: string): never {
-  redirect(`${BASE}?error=${encodeURIComponent(message)}`);
+const UUID = z.uuid();
+const Title = z.string().trim().min(1, t.errTitle).max(200, t.errTooLong);
+const Description = z.string().trim().max(4000, t.errTooLong).optional();
+
+/** fd.get() that turns empty inputs into undefined, so optional fields stay optional. */
+function formGetter(fd: FormData) {
+  return (k: string) => {
+    const v = fd.get(k);
+    return v === null || String(v).trim() === "" ? undefined : String(v);
+  };
 }
 
+/** The assignee must be someone who can use this module. */
+async function isMember(supabase: SupabaseClient, userId: string) {
+  const members = await listModuleMembers(supabase, MODULE);
+  return members.some((m) => m.id === userId);
+}
+
+const now = () => new Date().toISOString();
+
+// ------------------------------------------------------------------ create
 const CreateSchema = z.object({
-  title: z.string().trim().min(1, "Naslov je obvezen.").max(200, "Naslov je predolg."),
-  description: z.string().max(4000, "Opis je predolg.").optional(),
-  assignee_id: z.string().regex(UUID, "Izberi izvajalca."),
+  title: Title,
+  description: Description,
+  assignee_id: z.uuid({ error: t.errAssignee }),
   zoho_customer_id: z.string().max(100).optional(),
 });
 
-export async function createWorkOrder(formData: FormData) {
-  const get = (k: string) => {
-    const v = formData.get(k);
-    return v === null || v === "" ? undefined : String(v);
-  };
+export async function createWorkOrder(_prev: ActionResult, fd: FormData): Promise<ActionResult> {
+  const ctx = await moduleContext(MODULE);
+  if (!ctx.ok) return ctx;
+
+  const get = formGetter(fd);
   const parsed = CreateSchema.safeParse({
     title: get("title") ?? "",
     description: get("description"),
     assignee_id: get("assignee_id") ?? "",
     zoho_customer_id: get("zoho_customer_id"),
   });
-  if (!parsed.success) fail(parsed.error.issues[0]!.message);
+  if (!parsed.success) return fromZod(parsed.error);
+  const d = parsed.data;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  if (!(await userCanAccess(supabase, user.id, MODULE))) fail("Nimaš dostopa do tega modula.");
-
-  // Denormalize the customer name from Zoho (read-only) so the list/detail can show
-  // it without a per-row Zoho call. Mock mode resolves against bundled fixtures.
-  let customerName: string | null = null;
-  if (parsed.data.zoho_customer_id) {
-    const { customers } = await listCustomers();
-    customerName =
-      customers.find((c) => c.id === parsed.data.zoho_customer_id)?.name ?? null;
+  if (!(await isMember(ctx.supabase, d.assignee_id))) {
+    return fail(t.errAssigneeNoAccess, { assignee_id: t.errAssigneeNoAccess });
   }
 
-  const { error } = await supabase.from("work_orders_orders").insert({
-    user_id: user.id,
-    assignee_id: parsed.data.assignee_id,
-    zoho_customer_id: parsed.data.zoho_customer_id ?? null,
+  // Denormalize the customer name from Zoho (read-only) so the list needs no
+  // per-row Zoho call. Mock mode resolves against the bundled fixtures.
+  let customerName: string | null = null;
+  if (d.zoho_customer_id) {
+    const { customers } = await listCustomers();
+    customerName = customers.find((c) => c.id === d.zoho_customer_id)?.name ?? null;
+    if (!customerName) return fail(t.errCustomer, { zoho_customer_id: t.errCustomer });
+  }
+
+  const { error } = await ctx.supabase.from(TABLE).insert({
+    user_id: ctx.user.id,
+    assignee_id: d.assignee_id,
+    zoho_customer_id: d.zoho_customer_id ?? null,
     customer_name: customerName,
-    title: parsed.data.title,
-    description: parsed.data.description ?? null,
+    title: d.title,
+    description: d.description ?? null,
     status: "odprt",
   });
-  if (error) fail(error.message);
+  if (error) return fail(error.message);
 
   revalidatePath(BASE);
-  redirect(`${BASE}?ok=1`);
+  return ok(t.created);
 }
 
-const StatusSchema = z.object({
-  id: z.string().regex(UUID, "Neveljaven ID."),
-  status: z.enum(["odprt", "v_delu", "zakljucen"]),
-});
+// ------------------------------------------------------------------ edit title / description
+const UpdateSchema = z.object({ id: UUID, title: Title, description: Description });
 
-export async function setWorkOrderStatus(formData: FormData) {
-  const parsed = StatusSchema.safeParse({
-    id: formData.get("id"),
-    status: formData.get("status"),
+export async function updateWorkOrder(_prev: ActionResult, fd: FormData): Promise<ActionResult> {
+  const ctx = await moduleContext(MODULE);
+  if (!ctx.ok) return ctx;
+
+  const get = formGetter(fd);
+  const parsed = UpdateSchema.safeParse({
+    id: get("id") ?? "",
+    title: get("title") ?? "",
+    description: get("description"),
   });
-  if (!parsed.success) fail(parsed.error.issues[0]!.message);
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  if (!(await userCanAccess(supabase, user.id, MODULE))) fail("Nimaš dostopa do tega modula.");
+  if (!parsed.success) return fromZod(parsed.error);
+  const d = parsed.data;
 
   // RLS scopes the update to rows where the user is creator or assignee.
-  const { error } = await supabase
-    .from("work_orders_orders")
-    .update({ status: parsed.data.status, updated_at: new Date().toISOString() })
-    .eq("id", parsed.data.id);
-  if (error) fail(error.message);
+  const { data, error } = await ctx.supabase
+    .from(TABLE)
+    .update({ title: d.title, description: d.description ?? null, updated_at: now() })
+    .eq("id", d.id)
+    .select("id");
+  if (error) return fail(error.message);
+  if (!data?.length) return fail(t.errNotFound);
 
   revalidatePath(BASE);
-  redirect(`${BASE}?id=${parsed.data.id}&ok=1`);
+  return ok(t.updated);
+}
+
+// ------------------------------------------------------------------ status (inline button + segmented control)
+export async function setWorkOrderStatus(id: string, status: Status): Promise<ActionResult> {
+  const ctx = await moduleContext(MODULE);
+  if (!ctx.ok) return ctx;
+  if (!UUID.safeParse(id).success || !STATUSES.includes(status)) return fail(t.errNotFound);
+
+  const { data, error } = await ctx.supabase
+    .from(TABLE)
+    .update({ status, updated_at: now() })
+    .eq("id", id)
+    .select("id");
+  if (error) return fail(error.message);
+  if (!data?.length) return fail(t.errNotFound);
+
+  revalidatePath(BASE);
+  return ok(t.statusTo(STATUS[status].label));
+}
+
+// ------------------------------------------------------------------ reassign
+export async function reassignWorkOrder(id: string, assigneeId: string): Promise<ActionResult> {
+  const ctx = await moduleContext(MODULE);
+  if (!ctx.ok) return ctx;
+  if (!UUID.safeParse(id).success) return fail(t.errNotFound);
+  if (!UUID.safeParse(assigneeId).success) return fail(t.errAssignee);
+
+  const { data: row } = await ctx.supabase.from(TABLE).select("user_id").eq("id", id).maybeSingle();
+  if (!row) return fail(t.errNotFound);
+  if (row.user_id !== ctx.user.id) return fail(t.errOnlyCreatorReassigns);
+  if (!(await isMember(ctx.supabase, assigneeId))) return fail(t.errAssigneeNoAccess);
+
+  const { error } = await ctx.supabase
+    .from(TABLE)
+    .update({ assignee_id: assigneeId, updated_at: now() })
+    .eq("id", id);
+  if (error) return fail(error.message);
+
+  revalidatePath(BASE);
+  return ok(t.reassigned);
+}
+
+// ------------------------------------------------------------------ delete (creator only, confirmed in the UI)
+export async function deleteWorkOrder(id: string): Promise<ActionResult> {
+  const ctx = await moduleContext(MODULE);
+  if (!ctx.ok) return ctx;
+  if (!UUID.safeParse(id).success) return fail(t.errNotFound);
+
+  const { data: row } = await ctx.supabase.from(TABLE).select("user_id").eq("id", id).maybeSingle();
+  if (!row) return fail(t.errNotFound);
+  if (row.user_id !== ctx.user.id) return fail(t.errOnlyCreatorDeletes);
+
+  const { error } = await ctx.supabase.from(TABLE).delete().eq("id", id).eq("user_id", ctx.user.id);
+  if (error) return fail(error.message);
+
+  revalidatePath(BASE);
+  return ok(t.deleted);
 }

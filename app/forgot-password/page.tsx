@@ -3,34 +3,39 @@ import { requestRecovery } from "./actions";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AuthAlert, AuthShell } from "@/components/app/auth-shell";
+import { authErrorSl } from "@/lib/i18n/auth-errors";
+import { sl } from "@/lib/i18n/sl";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: sl.auth.forgotTitle };
 
 export default async function ForgotPasswordPage({ searchParams }: {
   searchParams: Promise<{ sent?: string; error?: string }>;
 }) {
   const { sent, error } = await searchParams;
+  const t = sl.auth;
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Forgot your password?</CardTitle>
-          <CardDescription>Request a link to choose a new password.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {sent ? <p role="status">If this email has an account, a reset link has been requested. Open the latest email in this browser.</p> : null}
-          {error ? <p role="alert">The reset link could not be requested. Wait a moment and try again.</p> : null}
-          <form action={requestRecovery} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" required autoComplete="email" maxLength={254} />
-            </div>
-            <SubmitButton className="w-full" pendingText="Requesting…">Request reset link</SubmitButton>
-          </form>
-          <Link className="font-medium underline underline-offset-4" href="/login">Back to sign in</Link>
-        </CardContent>
-      </Card>
-    </main>
+    <AuthShell
+      title={t.forgotTitle}
+      description={t.forgotText}
+      footer={
+        <Link className="font-semibold text-primary underline-offset-4 hover:underline" href="/login">
+          {t.backToSignIn}
+        </Link>
+      }
+    >
+      {sent ? <AuthAlert tone="ok">{t.forgotSent}</AuthAlert> : null}
+      {error ? <AuthAlert>{authErrorSl(error)}</AuthAlert> : null}
+      <form action={requestRecovery} className="space-y-5">
+        <div className="space-y-2">
+          <Label htmlFor="email">{t.email}</Label>
+          <Input id="email" name="email" type="email" required autoComplete="email" maxLength={254} autoFocus />
+        </div>
+        <SubmitButton size="lg" className="w-full" pendingText={t.forgotSending}>
+          {t.forgotSend}
+        </SubmitButton>
+      </form>
+    </AuthShell>
   );
 }

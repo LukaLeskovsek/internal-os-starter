@@ -2,6 +2,7 @@
 module: work_orders
 title: Delovni nalogi
 status: built
+pattern: dodeljevanje
 created: 2026-06-29
 by: Luka Leskovšek
 verified_runs: 0
@@ -10,18 +11,28 @@ live_url:
 
 # Delovni nalogi
 
-## Goal
-Interno orodje, kjer pisarna ustvari in dodeli delovni nalog, izvajalec pa ga na
-telefonu vidi in premika skozi statuse do zaključka (ob zaključku nazaj v Zoho).
+## Job & moment
+Pisarna v 15 sekundah pošlje delo pravi osebi; izvajalec na terenu na telefonu vidi
+svoje naloge in jih z enim dotikom premakne do zaključka.
 
-## What it does (input → process → output)
-- **Input:** pisarniški uporabnik vnese nalog — stranka (izbrana iz Zoho CRM,
-  read-only po vzoru [[intrix]]), naslov, opis, dodeljen izvajalec.
-- **Process:** nalog se shrani v Supabase (`work_orders_orders`) s statusom
-  `odprt`; izvajalec ga na mobilnem premika `odprt → v_delu → zakljucen`.
-- **Output:** vrstica naloga, vidna ustvarjalcu in dodeljenemu izvajalcu (RLS).
-  Ob zaključku se nalog zapiše nazaj v Zoho — **človek potrdi pred pošiljanjem**
-  (slice 3, zahteva odobritev lastnika).
+## Done for the person
+Pisarna: nalog je dodeljen in viden. Teren: nalog je zaključen, pisarna to vidi.
+
+## Primary action
+**Nov nalog** (bližnjica N) — gumb na ploščici Domov in v ⌘K, odpre `?nov=1`.
+
+## Tile line
+„2 odprta naloga zate" (pozornost) ali „5 odprtih nalogov" / „Ni odprtih nalogov".
+
+## Flow (fewest steps)
+1. Teren: odpre modul → privzet filter „Moji" → „Začni" / „Zaključi" na vrstici — **1 dotik**, z „Razveljavi".
+2. Pisarna: N → naslov → Enter — **~3**. Stranka: nedavne najprej (Zoho/demo), izvajalec:
+   zadnji izbrani; opis je skrit za „Dodaj opis".
+3. Podrobnosti v stranskem oknu (`?id=`): status, urejanje, predodelitev in brisanje (ustvarjalec).
+
+## Data stored
+`work_orders_orders` (RLS: ustvarjalec ali izvajalec): naslov, opis, stranka (Zoho id +
+ime), izvajalec, status `odprt → v_delu → zakljucen`. Sodelavci prek `core_module_members()`.
 
 ## Access
 Modul `work_orders` se podeli v Admin. Pisarna + izvajalci. Member vidi samo
@@ -42,14 +53,16 @@ podeljene module; admin grid (lastnik) odloča, kdo ima dostop.
 ## Done when
 1. Pisarniški uporabnik ustvari nalog s stranko izbrano iz Zoho in ga dodeli izvajalcu.
 2. Izvajalec (drug račun, mobilni viewport) vidi nalog med svojimi in ga premakne
-   `odprt → v_delu → zakljucen`; spremembe se shranijo (toast prek `?ok=`).
-3. Uporabnik brez podeljenega modula `work_orders` modula ne vidi in nima dostopa.
+   `odprt → v_delu → zakljucen` z enim dotikom na vrstici („Razveljavi" v toastu).
+3. Premik statusa = 1 dotik na telefonu; nov nalog ≤ 3 koraki.
+4. Uporabnik brez podeljenega modula `work_orders` modula ne vidi in nima dostopa.
 
 ## Out of scope
 - Slice 3 (write-back v Zoho) — ne v prvi verziji.
 - Priloge/fotografije, podpis stranke, push obvestila, offline način.
 
 ## Open / risks
-- Izbirnik izvajalca potrebuje seznam uporabnikov → branje `core_profiles` (id+email)
-  v Server Action; nikoli admin-client v client komponenti.
+- Izbirnik izvajalca: `listModuleMembers()` → `core_module_members()` (security definer,
+  samo aktivni klicatelj z dodeljenim, vklopljenim modulom); nikoli admin-client.
+- Predodelitev je samo za ustvarjalca (RLS WITH CHECK bi zavrnil izvajalca).
 - Prilagojen RLS (ustvarjalec ALI dodeljeni) — preveri pri `/verify`.

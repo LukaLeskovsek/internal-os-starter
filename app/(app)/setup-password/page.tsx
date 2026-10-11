@@ -1,8 +1,12 @@
 import { setPassword } from "./actions";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { PasswordInput } from "@/components/app/password-input";
+import { AuthAlert } from "@/components/app/auth-shell";
+import { authErrorSl } from "@/lib/i18n/auth-errors";
+import { sl } from "@/lib/i18n/sl";
+
+export const metadata = { title: sl.auth.setupTitle };
 
 export default async function SetupPasswordPage({
   searchParams,
@@ -10,38 +14,30 @@ export default async function SetupPasswordPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
+  const t = sl.auth;
 
   return (
     <div className="mx-auto max-w-md">
-      <Card>
-        <CardHeader>
-          <CardTitle>Set your password</CardTitle>
-          <CardDescription>
-            Choose a new password for future sign-ins.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error ? (
-            <p
-              role="alert"
-              className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            >
-              {error}
-            </p>
-          ) : null}
-          <form action={setPassword} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" />
+      <div className="rounded-3xl bg-card p-6 shadow-xs ring-1 ring-foreground/8 sm:p-8">
+        <h1 className="text-2xl font-semibold tracking-tight">{t.setupTitle}</h1>
+        <p className="mt-1.5 text-muted-foreground">{t.setupText}</p>
+        <div className="mt-6">
+          {error ? <AuthAlert>{authErrorSl(error)}</AuthAlert> : null}
+          <form action={setPassword} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="password">{t.newPassword}</Label>
+              <PasswordInput id="password" name="password" required minLength={8} autoComplete="new-password" autoFocus />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="confirm">Confirm password</Label>
-              <Input id="confirm" name="confirm" type="password" required minLength={8} autoComplete="new-password" />
+            <div className="space-y-2">
+              <Label htmlFor="confirm">{t.confirmPassword}</Label>
+              <PasswordInput id="confirm" name="confirm" required minLength={8} autoComplete="new-password" />
             </div>
-            <SubmitButton pendingText="Saving...">Save password</SubmitButton>
+            <SubmitButton size="lg" className="w-full" pendingText={sl.common.saving}>
+              {t.setupSave}
+            </SubmitButton>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

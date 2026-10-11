@@ -25,5 +25,5 @@ export async function setPassword(formData: FormData) {
     redirect(`/setup-password?error=${encodeURIComponent(error.message)}`);
   }
 
-  redirect("/home?ok=Password+set.");
+  redirect("/home?ok=Geslo+je+nastavljeno.");
 }

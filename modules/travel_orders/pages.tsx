@@ -1,164 +1,207 @@
+// travel_orders: the reference module for the "quick entry" pattern.
+//
+// Job: "After a client visit I want my trip on record in a few seconds, and at
+// the end of the month I want the km and € for my reimbursement."
+//
+// So the page is one month of trips (?mesec=YYYY-MM) with the month's totals on
+// top, one primary action ("Nova pot", N, ?nov=1) and one-click "Ponovi" on every
+// row. Data loads here on the server; the sheets and row buttons are client
+// components that receive plain props.
+import Link from "next/link";
+import { CarFront, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import type { ModuleProps } from "@/lib/modules";
 import { createClient } from "@/lib/supabase/server";
-import { createTrip } from "./actions";
-import { RATE_EUR_PER_KM } from "./constants";
-import { SubmitButton } from "@/components/ui/submit-button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/app/page-header";
+import { DataList, ListRow } from "@/components/app/data-list";
+import { EmptyState } from "@/components/app/empty-state";
+import { Button } from "@/components/ui/button";
+import {
+  count,
+  formatDay,
+  formatKm,
+  formatMoney,
+  formatMonth,
+  formatRelative,
+  formatWeekday,
+  todayIso,
+} from "@/lib/format";
+import { RECENT_ROUTES } from "./constants";
+import { t, trips as tripsWord } from "./strings";
+import { NewTripSheet } from "./trip-sheet";
+import { TripActions } from "./trip-actions";
+import type { RecentRoute, Trip, TripDefaults } from "./types";
 
-type Trip = {
-  id: string;
-  customer: string | null;
-  trip_date: string;
-  route_from: string;
-  route_to: string;
-  km: number;
-  departed_at: string | null;
-  arrived_at: string | null;
-  rate: number;
-  amount: number;
-  created_at: string;
-};
-
-const SELECT_COLS =
+const BASE = "/m/travel_orders";
+const COLS =
   "id, customer, trip_date, route_from, route_to, km, departed_at, arrived_at, rate, amount, created_at";
 
-const eur = new Intl.NumberFormat("sl-SI", { style: "currency", currency: "EUR" });
-const km1 = new Intl.NumberFormat("sl-SI", { maximumFractionDigits: 1 });
+export async function TravelOrdersModule({ searchParams }: ModuleProps) {
+  const thisMonth = todayIso().slice(0, 7);
+  const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(searchParams.mesec ?? "")
+    ? searchParams.mesec!
+    : thisMonth;
+  const prev = shiftMonth(month, -1);
+  const next = shiftMonth(month, 1);
 
-// Duration from two 'HH:MM' strings, same calendar day. Returns "" if either is
-// missing or the times don't form a positive span (we don't guess overnight trips).
-function duration(from: string | null, to: string | null): string {
-  if (!from || !to) return "";
-  const [fh, fm] = from.split(":").map(Number);
-  const [th, tm] = to.split(":").map(Number);
-  const mins = th * 60 + tm - (fh * 60 + fm);
-  if (mins <= 0) return "";
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
-
-// Module entry. List + create form. (No detail view in this slice.)
-export async function TravelOrdersModule(_props: { selectedId?: string }) {
-  void _props;
+  // RLS scopes both queries to the signed-in user's own trips.
   const supabase = await createClient();
-  // RLS scopes this to the signed-in user's own trips.
-  const { data } = await supabase
-    .from("travel_orders_trips")
-    .select(SELECT_COLS)
-    .order("trip_date", { ascending: false })
-    .order("created_at", { ascending: false });
-  const trips = (data ?? []) as Trip[];
+  const [monthRes, recentRes] = await Promise.all([
+    supabase
+      .from("travel_orders_trips")
+      .select(COLS)
+      .gte("trip_date", `${month}-01`)
+      .lt("trip_date", `${next}-01`)
+      .order("trip_date", { ascending: false })
+      .order("created_at", { ascending: false }),
+    // The last 50 trips feed the sheet's guesses (routes, origin, customers).
+    supabase
+      .from("travel_orders_trips")
+      .select("route_from, route_to, km, customer")
+      .order("trip_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
+  const trips = ((monthRes.data ?? []) as Trip[]).map((x) => ({
+    ...x,
+    km: Number(x.km),
+    rate: Number(x.rate),
+    amount: Number(x.amount),
+  }));
+  const defaults = buildDefaults(
+    (recentRes.data ?? []) as { route_from: string; route_to: string; km: number; customer: string | null }[],
+  );
 
-  const totalKm = trips.reduce((s, t) => s + Number(t.km), 0);
-  const totalAmount = trips.reduce((s, t) => s + Number(t.amount), 0);
-  const today = new Date().toISOString().slice(0, 10);
+  const totalKm = trips.reduce((s, x) => s + x.km, 0);
+  const totalEur = trips.reduce((s, x) => s + x.amount, 0);
+  const isThisMonth = month === thisMonth;
+  const monthLabel = capitalize(formatMonth(`${month}-01`));
+
+  const newTrip = <NewTripSheet defaults={defaults} defaultOpen={searchParams.nov === "1"} />;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">Potni nalogi</h1>
-          <Badge variant="secondary">{eur.format(RATE_EUR_PER_KM)}/km</Badge>
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Vneseš službeno pot in modul izračuna povračilo kilometrine.
-        </p>
-      </div>
+    <div className="max-sm:pb-24">
+      <nav aria-label={t.monthNav} className="-ml-3 mb-2 flex items-center gap-1 text-muted-foreground">
+        <Button variant="ghost" size="sm" render={<Link href={`${BASE}?mesec=${prev}`} scroll={false} />}>
+          <ChevronLeft />
+          {formatMonth(`${prev}-01`)}
+        </Button>
+        {!isThisMonth ? (
+          <>
+            <Button variant="ghost" size="sm" render={<Link href={`${BASE}?mesec=${next}`} scroll={false} />}>
+              {formatMonth(`${next}-01`)}
+              <ChevronRight />
+            </Button>
+            <Button variant="ghost" size="sm" render={<Link href={BASE} scroll={false} />}>
+              {t.thisMonth}
+            </Button>
+          </>
+        ) : null}
+      </nav>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Nova pot</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form action={createTrip} className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="customer">Stranka (neobvezno)</Label>
-              <Input id="customer" name="customer" maxLength={200} placeholder="npr. Acme d.o.o." />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="trip_date">Datum</Label>
-              <Input id="trip_date" name="trip_date" type="date" required defaultValue={today} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="route_from">Od</Label>
-              <Input id="route_from" name="route_from" required maxLength={200} placeholder="npr. Ljubljana" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="route_to">Do</Label>
-              <Input id="route_to" name="route_to" required maxLength={200} placeholder="npr. Maribor" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="km">Kilometri</Label>
-              <Input id="km" name="km" type="number" required min={0} step="0.1" inputMode="decimal" placeholder="npr. 128" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="departed_at">Odhod</Label>
-                <Input id="departed_at" name="departed_at" type="time" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="arrived_at">Prihod</Label>
-                <Input id="arrived_at" name="arrived_at" type="time" />
-              </div>
-            </div>
-            <div className="sm:col-span-2">
-              <SubmitButton className="w-full sm:w-auto" pendingText="Shranjujem…">
-                Dodaj pot
-              </SubmitButton>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      <PageHeader
+        title={monthLabel}
+        description={
+          trips.length
+            ? `${count(trips.length, tripsWord)} · ${formatKm(totalKm)} · ${formatMoney(totalEur)}`
+            : undefined
+        }
+        actions={newTrip}
+      />
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-muted-foreground">Poti</h2>
-          {trips.length > 0 ? (
-            <div className="text-sm text-muted-foreground">
-              Skupaj: <span className="font-medium text-foreground">{km1.format(totalKm)} km</span>
-              {" · "}
-              <span className="font-medium text-foreground">{eur.format(totalAmount)}</span>
-            </div>
-          ) : null}
-        </div>
-
-        {trips.length > 0 ? (
-          <div className="space-y-2">
-            {trips.map((t) => {
-              const dur = duration(t.departed_at, t.arrived_at);
-              return (
-                <Card key={t.id} size="sm">
-                  <CardContent className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate font-medium">
-                        {t.route_from} → {t.route_to}
-                      </div>
-                      <div className="mt-0.5 truncate text-sm text-muted-foreground">
-                        {t.trip_date}
-                        {t.customer ? ` · ${t.customer}` : ""}
-                        {` · ${km1.format(Number(t.km))} km`}
-                        {dur ? ` · ${dur}` : ""}
-                      </div>
-                    </div>
-                    <Badge variant="default" className="shrink-0">
-                      {eur.format(Number(t.amount))}
-                    </Badge>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              Še ni poti. Dodaj prvo zgoraj.
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {trips.length ? (
+        <DataList>
+          {trips.map((trip) => (
+            <ListRow
+              key={trip.id}
+              leading={<DayTile date={trip.trip_date} />}
+              title={`${trip.route_from} → ${trip.route_to}`}
+              meta={rowMeta(trip)}
+              trailing={
+                <div className="text-right tabular-nums">
+                  <div className="font-semibold">{formatMoney(trip.amount)}</div>
+                  <div className="text-sm text-muted-foreground">{formatKm(trip.km)}</div>
+                </div>
+              }
+              actions={<TripActions trip={trip} defaults={defaults} />}
+            />
+          ))}
+        </DataList>
+      ) : (
+        <EmptyState
+          icon={CarFront}
+          title={isThisMonth ? t.monthEmpty : t.otherMonthEmpty}
+          action={
+            <Button size="lg" render={<Link href={`${BASE}?mesec=${month}&nov=1`} scroll={false} />}>
+              <Plus />
+              {t.newTrip}
+            </Button>
+          }
+        >
+          {t.emptyText}
+        </EmptyState>
+      )}
     </div>
   );
+}
+
+// ------------------------------------------------------------------ helpers
+
+/** Weekday + day of the month in a soft tile, so a month of trips scans by date. */
+function DayTile({ date }: { date: string }) {
+  return (
+    <div className="flex size-12 flex-col items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+      <span className="text-[0.7rem] leading-none font-medium uppercase opacity-75">
+        {formatWeekday(date)}
+      </span>
+      <span className="text-lg leading-tight font-semibold tabular-nums">{formatDay(date)}</span>
+    </div>
+  );
+}
+
+/** "včeraj · Acme d.o.o. · 08:00–10:30" */
+function rowMeta(trip: Trip): string {
+  const parts = [formatRelative(trip.trip_date)];
+  if (trip.customer) parts.push(trip.customer);
+  if (trip.departed_at && trip.arrived_at) parts.push(`${trip.departed_at}–${trip.arrived_at}`);
+  return parts.join(" · ");
+}
+
+/** The sheet's guesses, from the user's recent trips (newest first). */
+function buildDefaults(
+  recent: { route_from: string; route_to: string; km: number; customer: string | null }[],
+): TripDefaults {
+  const routes: RecentRoute[] = [];
+  const seen = new Set<string>();
+  const origins = new Map<string, number>();
+  const customers: string[] = [];
+
+  for (const r of recent) {
+    origins.set(r.route_from, (origins.get(r.route_from) ?? 0) + 1);
+    if (r.customer && !customers.includes(r.customer)) customers.push(r.customer);
+    const key = `${r.route_from}|${r.route_to}`;
+    if (routes.length < RECENT_ROUTES && !seen.has(key)) {
+      seen.add(key);
+      routes.push({ from: r.route_from, to: r.route_to, km: Number(r.km), customer: r.customer });
+    }
+  }
+
+  // Most frequent origin; ties go to the most recent (Map keeps insertion order).
+  let origin = "";
+  let best = 0;
+  for (const [place, n] of origins) {
+    if (n > best) [origin, best] = [place, n];
+  }
+
+  return { today: todayIso(), yesterday: todayIso(-1), origin, routes, customers };
+}
+
+/** "2026-10" + 1 → "2026-11" */
+function shiftMonth(month: string, delta: number): string {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
