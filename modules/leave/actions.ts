@@ -79,7 +79,11 @@ const CompanyDaySchema = z
     start_date: IsoDate,
     end_date: IsoDate,
   })
-  .refine((r) => r.end_date >= r.start_date, { message: t.errEndBeforeStart, path: ["end_date"] });
+  .refine((r) => r.end_date >= r.start_date, { message: t.errEndBeforeStart, path: ["end_date"] })
+  .refine((r) => rangeLength(r.start_date, r.end_date) <= MAX_RANGE_DAYS, {
+    message: t.errTooLong,
+    path: ["end_date"],
+  });
 
 /** Work days of a range, with public holidays AND company days off excluded. */
 async function workDays(supabase: SupabaseClient, start: string, end: string): Promise<number> {

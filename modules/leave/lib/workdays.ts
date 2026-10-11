@@ -136,12 +136,21 @@ export function firstWorkDayFrom(iso: string, closed?: ClosedDays): string {
   return day;
 }
 
-/** Company-day ranges → the set of every date they cover. */
-export function expandRanges(ranges: { start_date: string; end_date: string }[]): Set<string> {
+/**
+ * Company-day ranges → the set of dates they cover inside [from, to]. The window keeps
+ * the work bounded: only the days a page or an action actually looks at are expanded.
+ */
+export function expandRanges(
+  ranges: { start_date: string; end_date: string }[],
+  from: string,
+  to: string,
+): Set<string> {
   const out = new Set<string>();
   for (const r of ranges) {
     if (!isIsoDate(r.start_date) || !isIsoDate(r.end_date)) continue;
-    for (let d = r.start_date; d <= r.end_date; d = addDays(d, 1)) out.add(d);
+    const start = r.start_date > from ? r.start_date : from;
+    const end = r.end_date < to ? r.end_date : to;
+    for (let d = start; d <= end; d = addDays(d, 1)) out.add(d);
   }
   return out;
 }

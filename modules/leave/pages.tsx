@@ -71,6 +71,9 @@ export async function LeaveModule({ searchParams }: ModuleProps) {
   const monthStart = `${month}-01`;
   const monthEnd = lastDayOfMonth(month);
   const nov = searchParams.nov === "1";
+  // Company days off from last year to next year: enough for every count on this page.
+  const windowStart = `${year - 1}-01-01`;
+  const windowEnd = `${year + 1}-12-31`;
 
   // RLS: everyone granted "leave" reads the same rows.
   const supabase = await createClient();
@@ -97,11 +100,10 @@ export async function LeaveModule({ searchParams }: ModuleProps) {
       .select("person_id")
       .order("created_at", { ascending: false })
       .limit(30),
-    // Company days off from last year to next year: enough for every count on this page.
-    loadCompanyDays(supabase, `${year - 1}-01-01`, `${year + 1}-12-31`),
+    loadCompanyDays(supabase, windowStart, windowEnd),
   ]);
 
-  const closed = expandRanges(companyDays);
+  const closed = expandRanges(companyDays, windowStart, windowEnd);
   const people = ((peopleRes.data ?? []) as Person[]).sort((a, b) =>
     a.full_name.localeCompare(b.full_name, "sl"),
   );

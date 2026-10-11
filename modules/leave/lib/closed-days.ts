@@ -24,5 +24,5 @@ export async function loadCompanyDays(
 
 /** The same, as a set of closed dates for countWorkDays(). */
 export async function loadClosedDays(supabase: SupabaseClient, from: string, to: string) {
-  return expandRanges(await loadCompanyDays(supabase, from, to));
+  return expandRanges(await loadCompanyDays(supabase, from, to), from, to);
 }
