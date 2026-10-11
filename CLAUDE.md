@@ -13,12 +13,83 @@ Before planning or writing, read the profile at the confirmed location in `.clau
 1. **A module is a folder** under `modules/<id>/` plus a registry entry and a
    `core_modules` row. Adding a tool never means a new deployment.
 2. **Module access is data, not code.** The `core_user_modules` table maps users to
-   modules. `/m/[module]` checks it server-side on every request; the launcher renders
-   only granted modules. Never gate a module with a hardcoded user list.
+   modules. `/m/[module]` checks it server-side on every request, and every module
+   action re-checks it with `moduleContext()`; Home and ⌘K show only granted modules.
+   Never gate a module with a hardcoded user list.
 3. **Every module's tables carry the module prefix** — `crm_demo_contacts`, never
    `contacts`. Migrations live in the module's own `db/` folder. **Cross-module table
    access is forbidden**; modules talk only via their own data.
 4. **Admin is a module too** (`admin`), granted only to the owner.
+
+## Build for the person, not for the table
+
+This is the most important rule for every screen you add. A module exists to get **one
+job** done for **one person at one moment** ("the field worker, on a phone, right after
+the visit, closes the work order"). Design that moment first; the database comes last.
+
+Never start from table → form → list. Start from: *who, when, where, and what does
+"done" look like for them?* Then pick the pattern in `docs/ux-patterns.md` and copy its
+reference module. Storage is whatever that flow needs, nothing more.
+
+## Design & UX rules
+
+1. **Job first.** Write the job sentence before any code (it goes into the Feature Card).
+2. **Fewest inputs.** Defaults, prefill from the last entry, "Ponovi" (repeat), chips for
+   recent values. Optional fields collapsed behind "Dodaj …". If a field can be derived,
+   don't ask for it.
+3. **One primary action per screen**, registered as `primaryAction` in
+   `modules/_registry.ts` (it shows on the Home tile and in ⌘K) with shortcut **N**.
+4. **Create and edit happen in a sheet** (`FormSheet`), never a form permanently open
+   above a list. Detail opens in a `DetailSheet` over the list (`?id=`), or a focused page
+   for queue work.
+5. **Feedback without leaving the page.** Actions return `ActionResult`; the UI shows a
+   toast, optimistic where safe, with "Razveljavi" (undo) for reversible changes.
+6. **Slovenian copy, in `modules/<id>/strings.ts`.** Dates, money, km and plurals go through
+   `lib/format.ts` — never show a raw ISO date or `toFixed()` number.
+7. **No developer text in the UI**: no env-var names, table names, ids, skill names, "RLS",
+   "mock". Say "Demo podatki" instead.
+8. **Every list has a friendly `EmptyState`** that offers the primary action.
+9. **Mobile first.** Rows (`DataList`/`ListRow`), not wide tables; 40px tap targets; the
+   page's primary action becomes a sticky bottom button on phones (`PageHeader` does it).
+10. **Keyboard**: Esc closes, Enter submits, N creates; queues add J/K (next/prev) and A/R.
+11. **Tokens only**: `bg-primary`, `text-muted-foreground`, `bg-accent`, `bg-success/12`…
+    Never hex values or Tailwind palette colours (`bg-blue-500`).
+12. **Base UI, not Radix**: compose with `render={<Link href="…" />}`, never `asChild`.
+
+## The module contract
+
+Every module tells the shell about itself in `modules/_registry.ts` (`lib/modules.ts` has
+the types): `id`, `name`, `description` (the job, one sentence), `icon` (from
+lucide.dev/icons), `primaryAction` (`{ label, href: "/m/<id>?nov=1" }`), optional
+`actions` and `keywords` for ⌘K, and optional `summary` → `modules/<id>/summary.ts`, the
+one-line status on the Home tile ("3 za pregled").
+
+A `summary.ts` uses **only** the RLS client it is given and **only** its own `<id>_*`
+tables, makes one cheap query, never calls an external API and never uses the admin
+client. Home times it out after 1.5 s.
+
+Module pages receive `{ searchParams }`: `?nov=1` opens the create sheet (that's how the
+Home tile and ⌘K deep-link into it), `?id=` opens detail, `?f=` filters, `?tab=` picks a tab.
+
+## The action pattern
+
+```ts
+"use server";
+export async function createTrip(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const ctx = await moduleContext("travel_orders");   // signed in + granted + module on
+  if (!ctx.ok) return ctx;
+  const parsed = Schema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return fromZod(parsed.error);
+  const { error } = await ctx.supabase.from("travel_orders_trips").insert({ … });
+  if (error) return fail(s.saveFailed);
+  revalidatePath("/m/travel_orders");
+  return ok(s.saved);
+}
+```
+
+Form actions take `(prev, formData)` and are used with `ActionForm`/`FormSheet`. Button
+actions take typed arguments (`setStatus(id, "v_delu")`) and are called through
+`useActionToast()`. Never `redirect()` for feedback.
 
 ## How to work
 
@@ -37,7 +108,9 @@ Before planning or writing, read the profile at the confirmed location in `.clau
   client component or expose `OPENROUTER_API_KEY`. Store AI output in the module's
   own prefixed, RLS-scoped table; read only this module's data. Use `/integrate-ai`;
   model it on the `ai_assist` module.
-- **After any change**, run `npm run lint && npm run build`, then `/check-architecture`.
+- **After any change**, run `npx tsc --noEmit && npm run lint`, then `/check-architecture`.
+  Run `npm run build` only when `npm run dev` is **not** running (both write `.next`; a
+  build under a live dev server corrupts it — stop dev, build, `rm -rf .next`, restart dev).
 - **Undo via `git revert`, never `git reset --hard` or `git push --force`.** If a change
   broke a working state, revert to the last good commit and re-verify. The history is the
   safety net — keep it intact.
@@ -52,12 +125,19 @@ action is the security boundary. Never expose that key, never `NEXT_PUBLIC_` it,
 import the admin client into a client component. A disabled user is blocked by the
 `(app)` guard; a disabled module is blocked by the `/m/[module]` router.
 
-## Never modify
+## Core vs. your modules
 
-- `app/login/`, `lib/` — auth, Supabase clients, access checks, email, the admin client, the AI client (`lib/ai.ts` — call `generate()`, don't rewrite the wiring).
-- `app/m/[module]/page.tsx` guard logic (add a `case`, don't change the guard).
+The template maintains the core; you extend it through `modules/`. Hands off:
+
+- `app/login/actions.ts`, `app/auth/`, the `(app)` layout guard and the
+  `app/(app)/m/[module]/page.tsx` guard (add a `case`, don't change the guard).
+- `lib/` security helpers: Supabase clients, `access.ts`, `module-context.ts`, the admin
+  client, `ai.ts` (call `generate()`, don't rewrite the wiring).
 - Core migrations (`supabase/migrations/`) that have already run.
 - Another module's folder.
+
+Copy and shared UI live in `lib/i18n/`, `lib/format.ts` and `components/app/` — reuse
+them; propose a change there rather than forking a copy into your module.
 
 ## Your build loop (skills in `.claude/skills/`)
 
@@ -74,15 +154,17 @@ While OFF:
 
 To turn pull requests ON (a teammate joins, or you want review before deploy), change the line above to `Pull requests: ON` and see `docs/workflow-mode.md`. When ON, `/ship` opens a PR (`gh pr create`) and merges when checks pass.
 
-## Design system (shadcn/ui)
+## Look and rebrand
 
-The UI is shadcn/ui (Base UI + Tailwind v4) in a premium-neutral style. Rebrand via the
-tokens at the top of `app/globals.css` (`--primary`, `--radius`) — not component files.
-**Every Server Action form submits with `<SubmitButton>`** (`components/ui/submit-button.tsx`),
-which shows a spinner and disables while pending (no double-submit). Action results surface
-as toasts via `?ok=` / `?error=`. All signed-in pages live under `app/(app)/` so they inherit
-the padded shell + header — keep new app pages there. Match these patterns for new UI.
+Friendly and warm, shadcn/ui on Base UI + Tailwind v4. Rebrand in three places, never in
+component files: the tokens at the top of `app/globals.css` (`--brand`, `--neutral-hue`,
+`--radius` — ask Claude to convert the BRAND.md colour to oklch), the font in
+`app/layout.tsx`, and `config/brand.ts` (name, tagline, footer). Light and dark mode both
+work; check both. Shared building blocks are in `components/app/` (`PageHeader`,
+`EmptyState`, `DataList`/`ListRow`, `FormSheet`, `DetailSheet`, `ActionForm`, `Field`,
+`StatusBadge`, `FilterChips`, `Info`). Submit buttons are `<SubmitButton>`. All signed-in
+pages live under `app/(app)/`.
 
 ## Build/run
-- `npm run dev` · `npm run lint && npm run build` (must pass).
+- `npm run dev` · `npx tsc --noEmit && npm run lint` (must pass) · `npm run build` with dev stopped.
 - A Supabase Edge Runtime warning on build (`process.version`) is expected and harmless.

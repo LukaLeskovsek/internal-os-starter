@@ -37,34 +37,53 @@ never edit a past run; each is a snapshot of one execution.
 ```markdown
 ---
 module: invoices          # the module id (= folder name, = table prefix)
-title: Invoices
+title: Računi
 status: planned           # planned → built → verified → shipped
+pattern: pregledna-vrsta  # hitri-vnos | pregledna-vrsta | dodeljevanje | iskanje | vprasaj
 created: 2026-06-29
 by: <your name>
 verified_runs: 0          # how many times /verify passed (promotion gate)
 live_url:                 # filled by /ship
 ---
 
-# Invoices
+# Računi
 
-## Goal
-<one sentence, in your words — from /plan>
+## Job & moment
+<who, when, where, in one sentence — "Računovodkinja, enkrat na teden za mizo,
+potrdi kup prejetih računov za plačilo.">
 
-## What it does (input → process → output)
-- **Input:** <a form field, or this module's own data>
-- **Process:** <what happens — match, draft, classify, summarize…>
-- **Output:** <a saved row, a draft, a table> — human approves at: <where>
+## Done for the person
+<what "done" looks like for them — "vsi računi so potrjeni ali zavrnjeni in
+izvoženi za plačilo">
+
+## Primary action
+**<label>** (shortcut N) — what the Home tile button and ⌘K do. Opens with `?nov=1`.
+
+## Tile line
+<what the Home tile summary says — "3 računi čakajo na pregled" / "Vse pregledano">
+
+## Flow (fewest steps)
+1. <step> — <what is prefilled / defaulted / derived>
+2. <step>
+3. <step>
+**Clicks for the main job:** <n> (on a phone)
+
+## Data stored
+<only what the flow needs — table `<id>_*`, its columns, RLS (owner / creator-or-assignee)>
 
 ## Access
 Who gets this module (granted in Admin). Members see only granted modules.
 
 ## AI (only if this module uses /integrate-ai)
-- **Capability:** draft | summarize | classify | answer
+- **Capability:** draft | summarize | classify | extract | answer
 - **Prompt:** the exact system + input sent through `lib/ai.ts`.
   Edit this to change the behaviour, then re-run `/integrate-ai`.
+- **Human checkpoint:** where the person approves or corrects the AI output.
 
 ## Done when
-<the concrete check /verify will run>
+- <the concrete check /verify will run, in the person's words>
+- The main job takes ≤ <n> clicks on a phone.
+- Empty state, light + dark mode, Slovenian copy, no raw dates.
 
 ## Out of scope
 <what you are NOT doing yet>
@@ -92,10 +111,10 @@ One short file per skill execution. Timestamp format: `YYYY-MM-DD-HHMM`.
 | Skill | Touches the Card | Appends a run file |
 |---|---|---|
 | `/scaffold-module` | creates `feature.md` (status: planned) if absent | — |
-| `/plan` | writes Goal / I/O / Access / Done-when (status: planned) | — |
+| `/plan` | writes Job & moment, Done for the person, Primary action, Tile line, Flow, Data stored, Access, Done when (status: planned) | — |
 | `/build` | status → built | `runs/<ts>-build.md` (slice, files, commit) |
 | `/integrate-ai` | fills the **AI** section (capability + the real prompt) | `runs/<ts>-integrate-ai.md` |
-| `/verify` | status → verified; `verified_runs +1` on all-✓ | `runs/<ts>-verify.md` (the ✓/✗ evidence) |
+| `/verify` | status → verified; `verified_runs +1` on all-✓ | `runs/<ts>-verify.md` (the ✓/✗ evidence, click count, screenshots) |
 | `/ship` | status → shipped; sets `live_url` | `runs/<ts>-ship.md` (live URL, commit) |
 
 > **Promotion gate.** `verified_runs` is your codify-after-a-few-runs counter —
