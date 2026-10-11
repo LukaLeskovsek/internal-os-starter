@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { LogOut, Monitor, Moon, Search, Sun } from "lucide-react";
 import {
+  Command,
   CommandDialog,
   CommandEmpty,
   CommandGroup,
@@ -35,8 +36,13 @@ export function CommandPalette({ items }: { items: PaletteItem[] }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      const typing = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
-      if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || (e.key === "/" && !typing)) {
+      const typing =
+        t &&
+        (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+      if (
+        (e.key === "k" && (e.metaKey || e.ctrlKey)) ||
+        (e.key === "/" && !typing)
+      ) {
         e.preventDefault();
         setOpen((o) => !o);
       }
@@ -74,42 +80,82 @@ export function CommandPalette({ items }: { items: PaletteItem[] }) {
         description={sl.palette.placeholder}
         className="sm:max-w-xl"
       >
-        <CommandInput placeholder={sl.palette.placeholder} />
-        <CommandList className="max-h-[60vh]">
-          <CommandEmpty>{sl.palette.empty}</CommandEmpty>
-          {group("actions").length ? (
-            <CommandGroup heading={sl.palette.actions}>
-              {group("actions").map((i) => (
-                <CommandItem key={i.href + i.label} value={`${i.label} ${(i.keywords ?? []).join(" ")}`} onSelect={() => go(i.href)} className="h-11 gap-3">
+        <Command>
+          <CommandInput placeholder={sl.palette.placeholder} />
+          <CommandList className="max-h-[60vh]">
+            <CommandEmpty>{sl.palette.empty}</CommandEmpty>
+            {group("actions").length ? (
+              <CommandGroup heading={sl.palette.actions}>
+                {group("actions").map((i) => (
+                  <CommandItem
+                    key={i.href + i.label}
+                    value={`${i.label} ${(i.keywords ?? []).join(" ")}`}
+                    onSelect={() => go(i.href)}
+                    className="h-11 gap-3"
+                  >
+                    {i.icon}
+                    {i.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ) : null}
+            <CommandGroup heading={sl.palette.goTo}>
+              {group("goTo").map((i) => (
+                <CommandItem
+                  key={i.href}
+                  value={`${i.label} ${(i.keywords ?? []).join(" ")}`}
+                  onSelect={() => go(i.href)}
+                  className="h-11 gap-3"
+                >
                   {i.icon}
                   {i.label}
                 </CommandItem>
               ))}
             </CommandGroup>
-          ) : null}
-          <CommandGroup heading={sl.palette.goTo}>
-            {group("goTo").map((i) => (
-              <CommandItem key={i.href} value={`${i.label} ${(i.keywords ?? []).join(" ")}`} onSelect={() => go(i.href)} className="h-11 gap-3">
-                {i.icon}
-                {i.label}
+            <CommandGroup heading={sl.palette.other}>
+              <CommandItem
+                value={`${sl.shell.theme} ${sl.theme.light}`}
+                onSelect={() => {
+                  setTheme("light");
+                  setOpen(false);
+                }}
+                className="h-11 gap-3"
+              >
+                <Sun /> {sl.shell.theme}: {sl.theme.light}
               </CommandItem>
-            ))}
-          </CommandGroup>
-          <CommandGroup heading={sl.palette.other}>
-            <CommandItem value={`${sl.shell.theme} ${sl.theme.light}`} onSelect={() => { setTheme("light"); setOpen(false); }} className="h-11 gap-3">
-              <Sun /> {sl.shell.theme}: {sl.theme.light}
-            </CommandItem>
-            <CommandItem value={`${sl.shell.theme} ${sl.theme.dark}`} onSelect={() => { setTheme("dark"); setOpen(false); }} className="h-11 gap-3">
-              <Moon /> {sl.shell.theme}: {sl.theme.dark}
-            </CommandItem>
-            <CommandItem value={`${sl.shell.theme} ${sl.theme.system}`} onSelect={() => { setTheme("system"); setOpen(false); }} className="h-11 gap-3">
-              <Monitor /> {sl.shell.theme}: {sl.theme.system}
-            </CommandItem>
-            <CommandItem value={sl.shell.signOut} onSelect={() => { setOpen(false); void signOut(); }} className="h-11 gap-3">
-              <LogOut /> {sl.shell.signOut}
-            </CommandItem>
-          </CommandGroup>
-        </CommandList>
+              <CommandItem
+                value={`${sl.shell.theme} ${sl.theme.dark}`}
+                onSelect={() => {
+                  setTheme("dark");
+                  setOpen(false);
+                }}
+                className="h-11 gap-3"
+              >
+                <Moon /> {sl.shell.theme}: {sl.theme.dark}
+              </CommandItem>
+              <CommandItem
+                value={`${sl.shell.theme} ${sl.theme.system}`}
+                onSelect={() => {
+                  setTheme("system");
+                  setOpen(false);
+                }}
+                className="h-11 gap-3"
+              >
+                <Monitor /> {sl.shell.theme}: {sl.theme.system}
+              </CommandItem>
+              <CommandItem
+                value={sl.shell.signOut}
+                onSelect={() => {
+                  setOpen(false);
+                  void signOut();
+                }}
+                className="h-11 gap-3"
+              >
+                <LogOut /> {sl.shell.signOut}
+              </CommandItem>
+            </CommandGroup>
+          </CommandList>
+        </Command>
       </CommandDialog>
     </>
   );
