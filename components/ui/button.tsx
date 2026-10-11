@@ -42,6 +42,8 @@ const buttonVariants = cva(
 
 // A Button rendered as something else (`render={<Link href="…" />}`) is not a
 // native <button>, so tell Base UI — otherwise it warns and adds button semantics.
+// If `render` is itself a component that renders a <button> (a Trigger), pass
+// `nativeButton` explicitly.
 function Button({
   className,
   variant = "default",
