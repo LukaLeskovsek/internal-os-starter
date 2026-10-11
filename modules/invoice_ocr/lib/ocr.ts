@@ -2,9 +2,9 @@
 // modules/crm_demo/lib/intrix.ts: reuse the SAME capped OPENROUTER_API_KEY, and with
 // NO key fall back to a sample invoice (mock) so the module works end-to-end, zero spend.
 //
-// Why here and not lib/ai.ts? lib/ai.ts is the text-only worked example and is
-// "never modify". Vision is a new capability, so — exactly like crm_demo owns its own
-// Intrix client — this module owns its own AI client. Same key, same mock idea.
+// Two engines, same as lib/ai.ts: AI_BACKEND=local-claude → your local Claude
+// subscription reads the file (generateFromFile); otherwise this module's own
+// OpenRouter vision client below. No key and no local Claude → the sample invoice.
 //
 // Verified against the live OpenRouter API (2026-06-25): images use an image_url part,
 // PDFs a file part (Claude ingests PDFs natively; the file-parser plugin keeps it working
@@ -12,6 +12,7 @@
 // openrouter.ai/models (e.g. the old claude-3.5-sonnet is gone; claude-sonnet-4.6 is
 // current). Mock mode covers the keyless case.
 import "server-only";
+import { generateFromFile } from "@/lib/ai";
 
 const KEY = process.env.OPENROUTER_API_KEY;
 // Must be a VISION + PDF capable model. Slugs move — verify at openrouter.ai/models
@@ -112,6 +113,19 @@ export async function extractInvoice(params: {
   raw: string;
   mock: boolean;
 }> {
+  // AI_BACKEND=local-claude: your local Claude subscription reads the file
+  // (lib/ai.ts, isolated claude -p). undefined = another backend → OpenRouter below.
+  const local = await generateFromFile({
+    system: SYSTEM,
+    prompt: "Izlušči glavo in vse postavke s tega računa.",
+    file: { base64: params.base64, mime: params.mime },
+  });
+  if (typeof local === "string") {
+    const parsed = parseExtraction(local);
+    return { data: parsed.data, lineItems: parsed.lineItems, raw: local, mock: false };
+  }
+  if (local === null) throw new Error("local claude -p could not read the invoice");
+
   if (!KEY) {
     return {
       data: SAMPLE,

@@ -86,16 +86,55 @@ export async function generate(params: {
  * API instead of the subscription (a documented surprise-bill footgun). Needs the
  * Node.js runtime, not Edge — Server Actions run on Node by default.
  */
-function generateViaLocalClaude(params: {
+async function generateViaLocalClaude(params: {
   prompt: string;
   system?: string;
 }): Promise<{ text: string; mock: boolean }> {
+  const text = await runLocalClaude({ system: params.system, stdin: params.prompt });
+  return text ? { text, mock: false } : { text: mockOutput(), mock: true };
+}
+
+/**
+ * One call with a FILE attached (an image or a PDF) — e.g. reading an invoice.
+ * Only the local-claude backend is handled here: it returns the model's text, or
+ * null when `claude -p` failed. For any other backend it returns undefined and the
+ * module uses its own client (invoice_ocr has an OpenRouter vision client).
+ */
+export async function generateFromFile(params: {
+  system: string;
+  prompt: string;
+  file: { base64: string; mime: string };
+}): Promise<string | null | undefined> {
+  if (BACKEND !== "local-claude") return undefined;
+  const isPdf = params.file.mime === "application/pdf";
+  const media = {
+    type: isPdf ? "document" : "image",
+    source: { type: "base64", media_type: params.file.mime, data: params.file.base64 },
+  };
+  // One user message in Claude Code's stream-json input format: the file + the ask.
+  const message = JSON.stringify({
+    type: "user",
+    message: { role: "user", content: [media, { type: "text", text: params.prompt }] },
+  });
+  return runLocalClaude({ system: params.system, stdin: message + "\n", streamJson: true });
+}
+
+/** Runs `claude -p` isolated; resolves the answer text, or null on any failure. */
+function runLocalClaude({
+  system,
+  stdin,
+  streamJson = false,
+}: {
+  system?: string;
+  stdin: string;
+  streamJson?: boolean;
+}): Promise<string | null> {
   const env = { ...process.env };
   delete env.ANTHROPIC_API_KEY; // force subscription auth, never pay-as-you-go
 
   // The module's system line REPLACES Claude Code's own system prompt, so the
   // answer comes from the app's instructions, not a coding agent's.
-  const system = params.system ?? "Si jedrnat in prijazen pomočnik. Odgovarjaj v slovenščini.";
+  const systemLine = system ?? "Si jedrnat in prijazen pomočnik. Odgovarjaj v slovenščini.";
 
   // Optional: point AI_BRAIN_DIR at a company-brain folder and Claude auto-loads
   // that folder's CLAUDE.md / PERSON / COMPANY / BRAND as grounding. Omit to run
@@ -104,7 +143,6 @@ function generateViaLocalClaude(params: {
   const cwd = process.env.AI_BRAIN_DIR || neutralDir();
 
   return new Promise((resolve) => {
-    const mock = () => resolve({ text: mockOutput(), mock: true });
     // Only FIXED flags are argv; the prompt goes on stdin (see SECURITY above).
     // Isolation: without these flags the child inherits the operator's own Claude
     // Code setup — global settings, plugins, MCP servers (mail, Slack, Jira…),
@@ -115,29 +153,45 @@ function generateViaLocalClaude(params: {
     // for your own machine only.)
     const args = [
       "-p",
-      "--output-format", "text",
+      ...(streamJson
+        ? ["--input-format", "stream-json", "--output-format", "stream-json", "--verbose"]
+        : ["--output-format", "text"]),
       "--setting-sources", "project",
       "--strict-mcp-config",
       "--tools", "",
       // `=` form: the value can never be parsed as another flag, even if it
       // starts with "-" (a module may put earlier chat turns in its system line).
-      `--system-prompt=${system}`,
+      `--system-prompt=${systemLine}`,
     ];
     const child = spawn("claude", args, { env, cwd });
     let out = "";
-    const timer = setTimeout(() => { child.kill("SIGKILL"); mock(); }, 120_000);
+    let settled = false;
+    const done = (v: string | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(v);
+    };
+    const timer = setTimeout(() => { child.kill("SIGKILL"); done(null); }, 120_000);
     child.stdout.on("data", (d) => {
       out += d.toString();
       if (out.length > 8 * 1024 * 1024) child.kill("SIGKILL"); // cap runaway output
     });
-    child.on("error", () => { clearTimeout(timer); mock(); }); // claude not installed
+    child.on("error", () => done(null)); // claude not installed
     child.on("close", (code) => {
-      clearTimeout(timer);
-      if (code === 0 && out.trim()) resolve({ text: out.trim(), mock: false });
-      else mock(); // not logged in / non-zero / empty → mock
+      if (code !== 0 || !out.trim()) return done(null); // not logged in / failed
+      if (!streamJson) return done(out.trim());
+      // stream-json: the last line is {"type":"result","result":"…","is_error":false}
+      const last = out.trim().split("\n").pop() ?? "";
+      try {
+        const r = JSON.parse(last) as { type?: string; result?: string; is_error?: boolean };
+        done(r.type === "result" && !r.is_error && r.result ? r.result.trim() : null);
+      } catch {
+        done(null);
+      }
     });
     child.stdin.on("error", () => {}); // ignore EPIPE if the child exits early
-    child.stdin.end(params.prompt);
+    child.stdin.end(stdin);
   });
 }
 
