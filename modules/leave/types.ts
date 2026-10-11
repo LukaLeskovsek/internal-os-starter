@@ -21,6 +21,15 @@ export type Absence = {
   created_at: string;
 };
 
+/** A company day off (or a run of them): kolektivni dopust, a bridge day. */
+export type CompanyDay = {
+  id: string;
+  name: string;
+  start_date: string; // YYYY-MM-DD
+  end_date: string; // YYYY-MM-DD
+  created_at: string;
+};
+
 /** What the absence sheet needs to guess well. Computed on the server. */
 export type AbsenceDefaults = {
   today: string; // YYYY-MM-DD in Ljubljana
@@ -29,4 +38,8 @@ export type AbsenceDefaults = {
   people: { id: string; name: string }[]; // everyone, A–Ž
   recentPeople: string[]; // ids, most recently entered first
   remaining: Record<string, number>; // person id → leave days left this year
+  closed: string[]; // company days off, last year to next year (YYYY-MM-DD), for the live count
 };
+
+/** Opens "Nova odsotnost" from a calendar cell: this person, this day. */
+export type AbsencePreset = { personId: string; date: string };

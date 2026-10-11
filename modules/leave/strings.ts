@@ -9,6 +9,34 @@ export const t = {
   thisMonth: "Ta mesec",
   tabAbsences: "Odsotnosti",
   tabTeam: "Ekipa",
+  tabCalendar: "Koledar",
+  tabHolidays: "Prazniki",
+
+  // Calendar
+  calendarLabel: "Koledar odsotnosti",
+  dragHint: "Povleci pas, da ga premakneš, ali rob, da spremeniš trajanje.",
+  barLabel: (name: string, kind: string, range: string) => `${name}: ${kind}, ${range}`,
+  newHere: (name: string, day: string) => `Nova odsotnost: ${name}, ${day}`,
+  moved: (n: number) => `Odsotnost premaknjena · ${n} ${plural(n, workDaysWord)}.`,
+  legendWeekend: "Vikend ali praznik",
+  legendCompany: "Dela prost dan podjetja",
+
+  // Holidays
+  holidaysTitle: (year: number) => `Prazniki ${year}`,
+  yearNav: "Premik po letih",
+  publicHoliday: "Državni praznik",
+  companyDay: "Podjetje",
+  onWeekend: "na vikend",
+  addCompanyDay: "Dodaj dela prost dan",
+  sheetCompanyDay: "Dela prost dan podjetja",
+  sheetCompanyDayDescription: "Kolektivni dopust ali most med prazniki. Ti dnevi se ne štejejo v dopust.",
+  companyDayName: "Ime",
+  companyDayNamePlaceholder: "npr. Kolektivni dopust",
+  saveCompanyDay: "Shrani",
+  companyDayCreated: "Dela prost dan dodan. Dnevi odsotnosti so znova prešteti.",
+  companyDayDeleted: "Dela prost dan izbrisan.",
+  companyDayRestored: "Dela prost dan vrnjen.",
+  errCompanyName: "Vpiši ime, npr. Kolektivni dopust.",
 
   // Absence sheet
   newAbsence: "Nova odsotnost",

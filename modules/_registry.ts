@@ -54,9 +54,13 @@ export const MODULES: ModuleDef[] = [
     name: "Dopusti",
     description: "Vnesi odsotnost v nekaj sekundah, dneve preštejemo sami.",
     icon: TreePalm,
-    keywords: ["dopust", "bolniška", "odsotnost", "prost dan", "ekipa"],
+    keywords: ["dopust", "bolniška", "odsotnost", "prost dan", "ekipa", "koledar", "praznik"],
     primaryAction: { label: "Nova odsotnost", href: "/m/leave?nov=1" },
-    actions: [{ label: "Dodaj osebo", href: "/m/leave?tab=ekipa&nov=1" }],
+    actions: [
+      { label: "Koledar odsotnosti", href: "/m/leave?tab=koledar" },
+      { label: "Dodaj osebo", href: "/m/leave?tab=ekipa&nov=1" },
+      { label: "Dodaj dela prost dan", href: "/m/leave?tab=prazniki&nov=1" },
+    ],
     summary: () => import("./leave/summary"),
   },
   {

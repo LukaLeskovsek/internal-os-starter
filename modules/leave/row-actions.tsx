@@ -12,11 +12,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { sl } from "@/lib/i18n/sl";
-import { deleteAbsence, deletePerson, restoreAbsence, restorePerson } from "./actions";
+import {
+  deleteAbsence,
+  deleteCompanyDay,
+  deletePerson,
+  restoreAbsence,
+  restoreCompanyDay,
+  restorePerson,
+} from "./actions";
 import { EditAbsenceSheet } from "./absence-sheet";
 import { EditPersonSheet } from "./person-sheet";
 import { t } from "./strings";
-import type { Absence, AbsenceDefaults, Person } from "./types";
+import type { Absence, AbsenceDefaults, CompanyDay, Person } from "./types";
 
 export function AbsenceActions({ absence, defaults }: { absence: Absence; defaults: AbsenceDefaults }) {
   const run = useActionToast();
@@ -43,6 +50,24 @@ export function PersonActions({ person }: { person: Person }) {
       <RowMenu onEdit={() => setEditing(true)} onDelete={remove} disabled={run.pending} />
       <EditPersonSheet person={person} open={editing} onOpenChange={setEditing} />
     </>
+  );
+}
+
+/** A company day off has nothing to edit worth a sheet: delete (undoable) is the only action. */
+export function CompanyDayActions({ day }: { day: CompanyDay }) {
+  const run = useActionToast();
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="size-10"
+      aria-label={sl.common.delete}
+      title={sl.common.delete}
+      disabled={run.pending}
+      onClick={() => run(() => deleteCompanyDay(day.id), { undo: (res) => restoreCompanyDay(res.data!) })}
+    >
+      <Trash2 />
+    </Button>
   );
 }
 

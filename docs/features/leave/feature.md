@@ -1,7 +1,7 @@
 ---
 module: leave
 title: Dopusti
-status: verified
+status: built
 pattern: hitri-vnos
 created: 2026-10-11
 by: Luka Leskovšek
@@ -110,9 +110,41 @@ vnos odsotnosti, mesečni pregled in stanje dni.
 5. Glavno delo traja ≤ 5 klikov na telefonu. Prazna stanja, svetla in temna tema,
    slovenska besedila, brez surovih datumov.
 
+## Rez 2: prazniki, dnevi podjetja, koledar
+
+**Job:** vodja na enem zaslonu vidi, kdo manjka hkrati, in odsotnost popravi z enim potegom
+namesto z odpiranjem obrazca. Prazniki in dela prosti dnevi podjetja so vidni in se ne štejejo
+v dopust.
+
+**Tok:**
+1. **Zavihek Koledar** (`?tab=koledar&mesec=`): vrstice so osebe, stolpci dnevi meseca, odsotnost
+   je pas (dopust / bolniška / drugo v svoji barvi). Vikendi, prazniki in dnevi podjetja so
+   zasenčeni, ime praznika se pokaže ob prehodu z miško. Danes je poudarjen.
+2. **Vlečenje (računalnik):** pas povlečeš na druge dneve (dolžina ostane), za rob ga podaljšaš
+   ali skrajšaš. Delovni dnevi se izračunajo znova, toast z „Razveljavi". Spust na dneve brez
+   delovnih dni vrne napako in pas se vrne. Tipkovnica: ←/→ premakne za dan, Shift+←/→
+   spremeni konec, Enter odpre urejanje.
+3. **Telefon:** koledar drsi vodoravno, dotik pasu odpre urejanje.
+4. **Klik na prazno celico** odpre „Nova odsotnost" z izbrano osebo in datumom (2 klika + Enter).
+5. **Zavihek Prazniki** (`?tab=prazniki&leto=`): državni prazniki leta (samo za branje) in dnevi
+   podjetja. „Dodaj dela prost dan" (N): ime, od, do. Brisanje z „Razveljavi".
+
+**Podatki:** `leave_company_days` (`name`, `start_date`, `end_date`, `user_id`), RLS kot ostali
+tabeli modula (`leave_can_access()`). Ob dodajanju ali brisanju dneva podjetja strežnik znova
+izračuna `work_days` odsotnostim, ki se z obdobjem prekrivajo.
+
+**Done when:**
+1. Dan podjetja 28.–30. 12. 2026 zmanjša dopust 21.–31. 12. z 8 na 5 dni, Ekipa se posodobi.
+2. Koledar pokaže praznike (npr. 31. 10. dan reformacije) zasenčene in poimenovane.
+3. Vlečenje pasu za 2 dni premakne datume in znova prešteje dni; „Razveljavi" ga vrne;
+   raztezanje roba spremeni konec; spust na sam vikend se zavrne.
+4. Klik na prazno celico odpre predizpolnjen sheet; na telefonu dotik pasu odpre urejanje.
+5. Član brez dodelitve ne vidi dni podjetja in jih ne more vnesti.
+
 ## Out of scope
 - Poldnevni dopust in ure.
 - Samodejni prenos neporabljenih dni iz lanskega leta (vodja ga za zdaj prišteje k fondu).
 - Prijava zaposlenih, prošnje in odobritve.
-- Opozorila na prekrivanje odsotnosti, koledarski (gantt) pogled, izvoz.
+- Opozorila na prekrivanje odsotnosti, izvoz.
+- Vlečenje odsotnosti na drugo osebo in vlečenje na telefonu.
 - Arhiviranje oseb (oseba z odsotnostmi se ne da izbrisati).

@@ -9,7 +9,7 @@
 //   - kind defaults to Dopust
 //   - the work-day count and the days left update live; the server recomputes
 //   - the note hides behind "Dodaj opombo"
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { FormSheet } from "@/components/app/form-sheet";
 import { Field } from "@/components/app/field";
@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 import { createAbsence, updateAbsence } from "./actions";
 import { countWorkDays, workDaysInYear } from "./lib/workdays";
 import { kindLabel, t } from "./strings";
-import { KINDS, type Absence, type AbsenceDefaults, type Kind } from "./types";
+import { KINDS, type Absence, type AbsenceDefaults, type AbsencePreset, type Kind } from "./types";
 
 /** How many people get a chip before the rest move into the picker. */
 const CHIPS = 6;
@@ -66,7 +66,33 @@ export function NewAbsenceSheet({
   );
 }
 
-/** Opened from the row menu, so it has no trigger of its own. */
+/** Opened from an empty calendar cell: the person and the day are already chosen. */
+export function PresetAbsenceSheet({
+  defaults,
+  preset,
+  onOpenChange,
+}: {
+  defaults: AbsenceDefaults;
+  preset: AbsencePreset | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <FormSheet
+      title={t.sheetNew}
+      description={t.sheetDescription}
+      action={createAbsence}
+      submitLabel={t.saveAbsence}
+      open={!!preset}
+      onOpenChange={onOpenChange}
+    >
+      {preset ? (
+        <AbsenceFields key={`${preset.personId}|${preset.date}`} defaults={defaults} preset={preset} />
+      ) : null}
+    </FormSheet>
+  );
+}
+
+/** Opened from the row menu or a calendar bar, so it has no trigger of its own. */
 export function EditAbsenceSheet({
   absence,
   defaults,
@@ -94,14 +120,23 @@ export function EditAbsenceSheet({
 
 // ------------------------------------------------------------------ fields
 
-function AbsenceFields({ defaults, initial }: { defaults: AbsenceDefaults; initial?: Absence }) {
+function AbsenceFields({
+  defaults,
+  initial,
+  preset,
+}: {
+  defaults: AbsenceDefaults;
+  initial?: Absence;
+  preset?: AbsencePreset;
+}) {
   const { people } = defaults;
+  const closed = useMemo(() => new Set(defaults.closed), [defaults.closed]);
   const [personId, setPersonId] = useState<string>(
-    initial?.person_id ?? (people.length === 1 ? people[0].id : ""),
+    initial?.person_id ?? preset?.personId ?? (people.length === 1 ? people[0].id : ""),
   );
   const [kind, setKind] = useState<Kind>(initial?.kind ?? "dopust");
-  const [from, setFrom] = useState(initial?.start_date ?? defaults.start);
-  const [to, setTo] = useState(initial?.end_date ?? defaults.start);
+  const [from, setFrom] = useState(initial?.start_date ?? preset?.date ?? defaults.start);
+  const [to, setTo] = useState(initial?.end_date ?? preset?.date ?? defaults.start);
   const [showNote, setShowNote] = useState(!!initial?.note);
 
   // Chips: recently entered people first, then A–Ž; the rest go into the picker.
@@ -121,13 +156,13 @@ function AbsenceFields({ defaults, initial }: { defaults: AbsenceDefaults; initi
   }
 
   // Live preview, with the same helpers the server uses.
-  const workDays = countWorkDays(from, to);
+  const workDays = countWorkDays(from, to, { closed });
   let left: number | null = null;
   if (kind === "dopust" && personId && defaults.remaining[personId] !== undefined) {
-    left = defaults.remaining[personId] - workDaysInYear(from, to, defaults.year);
+    left = defaults.remaining[personId] - workDaysInYear(from, to, defaults.year, closed);
     // Editing: this absence is already counted in the balance — give it back first.
     if (initial && initial.kind === "dopust" && initial.person_id === personId) {
-      left += workDaysInYear(initial.start_date, initial.end_date, defaults.year);
+      left += workDaysInYear(initial.start_date, initial.end_date, defaults.year, closed);
     }
   }
 
