@@ -29,6 +29,7 @@ export function ListRow({
   trailing,
   actions,
   className,
+  hideLeadingOnMobile = false,
   scroll = false,
 }: {
   href?: string;
@@ -39,6 +40,8 @@ export function ListRow({
   /** Buttons that must stay clickable on top of the row link. */
   actions?: ReactNode;
   className?: string;
+  /** Hide the leading tile on phones (it can crowd the title). */
+  hideLeadingOnMobile?: boolean;
   scroll?: boolean;
 }) {
   return (
@@ -49,7 +52,9 @@ export function ListRow({
         className,
       )}
     >
-      {leading ? <div className="shrink-0">{leading}</div> : null}
+      {leading ? (
+        <div className={cn("shrink-0", hideLeadingOnMobile && "max-sm:hidden")}>{leading}</div>
+      ) : null}
       <div className="min-w-0 flex-1">
         <div className="truncate font-medium">
           {href ? (

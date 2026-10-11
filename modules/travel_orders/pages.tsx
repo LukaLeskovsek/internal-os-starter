@@ -114,6 +114,7 @@ export async function TravelOrdersModule({ searchParams }: ModuleProps) {
             <ListRow
               key={trip.id}
               leading={<DayTile date={trip.trip_date} />}
+              hideLeadingOnMobile
               title={`${trip.route_from} → ${trip.route_to}`}
               meta={rowMeta(trip)}
               trailing={
@@ -146,7 +147,8 @@ export async function TravelOrdersModule({ searchParams }: ModuleProps) {
 
 // ------------------------------------------------------------------ helpers
 
-/** Weekday + day of the month in a soft tile, so a month of trips scans by date. */
+/** Weekday + day of the month in a soft tile, so a month of trips scans by date.
+ *  Hidden on phones, where the route needs the width and the meta line says "danes". */
 function DayTile({ date }: { date: string }) {
   return (
     <div className="flex size-12 flex-col items-center justify-center rounded-2xl bg-accent text-accent-foreground">

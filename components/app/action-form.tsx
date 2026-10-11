@@ -77,6 +77,8 @@ export function ActionForm<T = any>({
       >
         <form
           ref={formRef}
+          // Our zod messages (Slovenian, under the field) replace the browser's own bubbles.
+          noValidate
           className={cn("space-y-5", className)}
           // onSubmit (not action=) so React doesn't wipe the inputs on a validation error.
           onSubmit={(e) => {
