@@ -15,7 +15,11 @@ export async function POST(request: Request) {
   // Server Actions check the Origin for us; a route must do it itself.
   const origin = request.headers.get("origin");
   const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  if (!origin || !host || new URL(origin).host !== host) {
+  let originHost: string | null = null;
+  try {
+    originHost = origin ? new URL(origin).host : null; // "null" (sandboxed pages) is not a URL
+  } catch {}
+  if (!originHost || !host || originHost !== host) {
     return NextResponse.json(fail(sl.errors.generic), { status: 403 });
   }
 
