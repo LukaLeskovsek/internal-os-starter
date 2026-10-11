@@ -17,7 +17,7 @@ export default async function SetupPasswordPage({
         <CardHeader>
           <CardTitle>Set your password</CardTitle>
           <CardDescription>
-            Finish accepting the admin invite by choosing a password for future sign-ins.
+            Choose a new password for future sign-ins.
           </CardDescription>
         </CardHeader>
         <CardContent>
