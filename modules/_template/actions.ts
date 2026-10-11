@@ -111,13 +111,16 @@ export async function deleteItem(id: string): Promise<ActionResult<Item>> {
 export async function restoreItem(item: Item): Promise<ActionResult> {
   const ctx = await moduleContext(MODULE);
   if (!ctx.ok) return ctx;
-  const parsed = ItemSchema.extend({ id: UUID, created_at: z.string().min(1) }).safeParse({
+  // The row comes back from the browser: re-validate it, and let the database set
+  // created_at. Never trust client-sent values that matter (amounts, rates, dates of record).
+  const parsed = ItemSchema.extend({ id: UUID }).safeParse({
     ...item,
     note: item.note ?? undefined,
   });
   if (!parsed.success) return fromZod(parsed.error);
 
-  const { error } = await ctx.supabase.from(TABLE).insert({ ...parsed.data, note: parsed.data.note ?? null, user_id: ctx.user.id });
+  const { id, title, item_date, note } = parsed.data;
+  const { error } = await ctx.supabase.from(TABLE).insert({ id, title, item_date, note: note ?? null, user_id: ctx.user.id });
   if (error) return fail(t.saveFailed);
 
   revalidatePath(BASE);

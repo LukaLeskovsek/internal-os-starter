@@ -210,11 +210,14 @@ const RestoreSchema = TripSchema.extend({
   customer: z.string().max(200).nullable(),
   departed_at: TIME.nullable(),
   arrived_at: TIME.nullable(),
-  rate: z.coerce.number().min(0).max(10),
-  created_at: z.string().min(1),
 });
 
-/** Undo for deleteTrip: insert the same row again (same id, rate and date). */
+/**
+ * Undo for deleteTrip: insert the trip again with the same id and trip data.
+ * The row comes back from the browser, so money-relevant values are NOT trusted:
+ * the rate is today's server constant and created_at is set by the database.
+ * (Otherwise anyone could post a "restore" with an inflated €/km.)
+ */
 export async function restoreTrip(trip: DeletedTrip): Promise<ActionResult> {
   const ctx = await moduleContext(MODULE);
   if (!ctx.ok) return ctx;
@@ -234,9 +237,8 @@ export async function restoreTrip(trip: DeletedTrip): Promise<ActionResult> {
     km,
     departed_at: d.departed_at,
     arrived_at: d.arrived_at,
-    rate: d.rate,
-    amount: reimbursement(km, d.rate),
-    created_at: d.created_at,
+    rate: RATE_EUR_PER_KM,
+    amount: reimbursement(km),
   });
   if (error) return fail(error.message);
 
