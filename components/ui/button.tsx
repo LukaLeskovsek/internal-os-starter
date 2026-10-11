@@ -1,4 +1,7 @@
+import * as React from "react"
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
+import { mergeProps } from "@base-ui/react/merge-props"
+import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
@@ -40,25 +43,41 @@ const buttonVariants = cva(
   }
 )
 
-// A Button rendered as something else (`render={<Link href="…" />}`) is not a
-// native <button>, so tell Base UI — otherwise it warns and adds button semantics.
-// If `render` is itself a component that renders a <button> (a Trigger), pass
-// `nativeButton` explicitly.
+// <Button render={<Link href="…" />}> renders the LINK with button styling — it
+// keeps link semantics (no role="button"), so screen readers and tests see a link.
+// If `render` is a component that renders a real <button> (a Trigger), pass
+// `nativeButton` and it goes through Base UI's Button as usual.
 function Button({
   className,
   variant = "default",
   size = "default",
   nativeButton,
+  render,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  const classes = cn(buttonVariants({ variant, size, className }))
+  if (render && !nativeButton) {
+    return <ButtonLink render={render} className={classes} {...props} />
+  }
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
-      nativeButton={nativeButton ?? !props.render}
+      className={classes}
+      nativeButton={nativeButton}
+      render={render}
       {...props}
     />
   )
+}
+
+function ButtonLink({
+  render,
+  ...props
+}: Omit<ButtonPrimitive.Props, "className"> & { className: string }) {
+  return useRender({
+    render: render as useRender.RenderProp,
+    props: mergeProps<"a">({ "data-slot": "button" } as React.ComponentProps<"a">, props as React.ComponentProps<"a">),
+  })
 }
 
 export { Button, buttonVariants }
