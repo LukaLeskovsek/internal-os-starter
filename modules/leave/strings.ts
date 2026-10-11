@@ -17,7 +17,7 @@ export const t = {
   dragHint: "Povleci pas, da ga premakneš, ali rob, da spremeniš trajanje.",
   barLabel: (name: string, kind: string, range: string) => `${name}: ${kind}, ${range}`,
   newHere: (name: string, day: string) => `Nova odsotnost: ${name}, ${day}`,
-  moved: (n: number) => `Odsotnost premaknjena · ${n} ${plural(n, workDaysWord)}.`,
+  moved: (n: number) => `Odsotnost posodobljena · ${n} ${plural(n, workDaysWord)}.`,
   legendWeekend: "Vikend ali praznik",
   legendCompany: "Dela prost dan podjetja",
 

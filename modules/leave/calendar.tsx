@@ -12,7 +12,7 @@
 //
 // Every change goes through moveAbsence() (server recounts work days) with
 // "Razveljavi". While the server works, the bar stays where it was dropped.
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { formatDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -61,11 +61,26 @@ export function TeamCalendar({
   const [editing, setEditing] = useState<Absence | null>(null);
   const [preset, setPreset] = useState<AbsencePreset | null>(null);
   const justDragged = useRef(false);
+  const scroller = useRef<HTMLDivElement>(null);
   const closed = useMemo(() => new Set(defaults.closed), [defaults.closed]);
 
   const first = days[0].date;
   const last = days[days.length - 1].date;
   const n = days.length;
+
+  // On a narrow screen the grid scrolls sideways: start at today (or, in another
+  // month, at the first absence) instead of the 1st, so the useful part is in view.
+  const focusDate =
+    today >= first && today <= last
+      ? today
+      : absences.map((a) => (a.start_date < first ? first : a.start_date)).sort()[0];
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el || !focusDate || el.scrollWidth <= el.clientWidth) return;
+    const cell = el.querySelector<HTMLElement>(`[data-date="${focusDate}"]`);
+    const names = el.querySelector<HTMLElement>("[data-names]");
+    if (cell && names) el.scrollLeft = Math.max(0, cell.offsetLeft - names.offsetWidth - 8);
+  }, [focusDate]);
 
   /** Where a bar is drawn right now: dragged preview > waiting for the server > saved. */
   function rangeOf(a: Absence): Range {
@@ -145,6 +160,7 @@ export function TeamCalendar({
   return (
     <>
       <div
+        ref={scroller}
         role="region"
         aria-label={t.calendarLabel}
         className="overflow-x-auto rounded-2xl bg-card shadow-xs ring-1 ring-foreground/8"
@@ -159,13 +175,13 @@ export function TeamCalendar({
           }}
         >
           {/* Header: weekday + day number; days off shaded, today ringed. */}
-          <div className="sticky left-0 z-20 border-b bg-card px-3 py-2 text-sm font-medium text-muted-foreground">
+          <div data-names className="sticky left-0 z-20 border-b bg-card px-3 py-2 text-sm font-medium text-muted-foreground">
             {t.person}
           </div>
           {days.map((d) => (
             <div
               key={d.date}
-             
+              data-date={d.date}
               title={d.name}
               className={cn(
                 "flex flex-col items-center justify-center border-b py-1.5 text-center leading-tight",
