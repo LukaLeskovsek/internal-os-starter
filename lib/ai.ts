@@ -13,7 +13,9 @@
 import "server-only";
 import OpenAI from "openai";
 import { spawn } from "node:child_process";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 // Cheap + fast default for a workshop (the key is capped). Verify the current slug
 // at openrouter.ai/models; bump to a stronger Claude model if you want.
@@ -97,8 +99,8 @@ function generateViaLocalClaude(params: {
   // Optional: point AI_BRAIN_DIR at a company-brain folder and Claude auto-loads
   // that folder's CLAUDE.md / PERSON / COMPANY / BRAND as grounding. Omit to run
   // without it. Never default to this app's root (the server's cwd) — that loads
-  // the dev rules in CLAUDE.md into every answer — so blank means a neutral tmpdir.
-  const cwd = process.env.AI_BRAIN_DIR || tmpdir();
+  // the dev rules in CLAUDE.md into every answer — so blank means a private empty dir.
+  const cwd = process.env.AI_BRAIN_DIR || neutralDir();
 
   return new Promise((resolve) => {
     const mock = () => resolve({ text: mockOutput(), mock: true });
@@ -119,6 +121,15 @@ function generateViaLocalClaude(params: {
     child.stdin.on("error", () => {}); // ignore EPIPE if the child exits early
     child.stdin.end(input);
   });
+}
+
+// A private (0700), empty working dir for `claude -p`. Never the shared /tmp
+// itself: Claude Code loads CLAUDE.md and .claude/settings.json (hooks!) from its
+// cwd, so a world-writable dir would let another local user inject config.
+let privateDir: string | undefined;
+function neutralDir(): string {
+  privateDir ??= mkdtempSync(join(tmpdir(), "internal-os-ai-"));
+  return privateDir;
 }
 
 function mockOutput(): string {
