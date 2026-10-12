@@ -9,7 +9,9 @@ created by:
 ADMIN_EMAIL=founder@example.com npm run seed:admin
 ```
 
-Open the printed invite link, set the password, then manage users/modules in Admin.
+It opens a one-time password link in the browser (`-- --print` prints it instead; treat
+it as a credential). Press Nadaljuj, set the password, then manage users and tools in
+Administracija.
 
 ## AI daily budget
 

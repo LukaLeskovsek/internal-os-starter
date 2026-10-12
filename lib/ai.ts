@@ -1,7 +1,7 @@
 // The system's AI calls go through here. SERVER-ONLY.
 //
-// Uses OpenRouter via the OpenAI-compatible SDK — the SAME capped key your Hermes
-// agent uses, so no new account. Default model is Claude; set OPENROUTER_MODEL to
+// Uses OpenRouter via the OpenAI-compatible SDK, with your own key and a spending
+// limit (openrouter.ai → Keys). Default model is Claude; set OPENROUTER_MODEL to
 // switch (e.g. an OpenAI model) — the call shape never changes.
 //
 // SECURITY: OPENROUTER_API_KEY is server-only — never NEXT_PUBLIC, never in the

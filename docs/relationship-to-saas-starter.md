@@ -1,25 +1,33 @@
 # How this relates to the SaaS starter (Day 2 → Day 3)
 
 The whole point of the build track: **Day 3 should feel like Day 2 plus one concept.**
-This repo is deliberately the SaaS starter's sibling — almost everything is identical,
-and the new surface is small and nameable: **modules**.
+This repo is the SaaS starter's sibling ([LukaLeskovsek/saas-starter](https://github.com/LukaLeskovsek/saas-starter)):
+the foundations are shared, and the new surface is small and nameable: **modules**.
+Both were brought to the same level on 2026-10-12.
 
-## Identical (copied verbatim — confidence carry-over)
-
-If a founder learned it on Day 2, it works exactly the same on Day 3:
+## Shared (same code, so Day 2 habits carry over)
 
 | Thing | Files | Notes |
 |---|---|---|
-| Stack | — | Next.js 15, React 19, TS strict, Tailwind 4, npm |
-| Sign-in | `app/login/`, `lib/supabase/{client,server,middleware}.ts`, `middleware.ts` | Email + password, email-confirmation OFF, server-action forms. **Byte-for-byte the same**, except sign-in lands on `/home` instead of `/dashboard`. |
-| Env style | `.env.example` | Same Supabase/Resend/Sentry contract + comments; Intrix vars appended. |
-| Error tracking | `instrumentation*.ts`, `sentry.*.config.ts`, `app/global-error.tsx`, `next.config.ts` | Identical Sentry wiring. |
-| Email | `lib/email.ts` | Same Resend wrapper. |
-| UI + brand tokens | `components/ui/*`, `components/footer.tsx`, `app/globals.css`, `app/layout.tsx` | Same primitives and rebrandable CSS variables. |
-| RLS discipline | every migration | "Every table enables RLS in the same migration" — same rule, applied per module. |
-| Build/verify | — | `npm run lint && npm run build`; same harmless Supabase Edge warning. |
+| Stack | `package.json`, `.nvmrc` | Next.js 15.5.27, React 19, TS strict, Tailwind 4, npm, Node 22 |
+| Supabase clients + session | `lib/supabase/{client,server,middleware}.ts`, `middleware.ts` | Identical. |
+| Sign-in | `app/login/` | Same page (AuthShell, Slovenian, translated errors, "Pozabljeno geslo?") and the same actions; sign-in lands on `/home` here and `/dashboard` there. |
+| Forgotten password | `app/forgot-password/`, `app/auth/callback/`, `app/auth/recovery/`, `app/(app)/setup-password/` | Identical apart from the landing page. See `docs/password-recovery.md`. |
+| Look and feel | `app/globals.css`, `app/layout.tsx`, `config/brand.ts`, `components/ui/*`, the generic `components/app/*` | Same tokens (`--brand`, `--neutral-hue`), Figtree, light/dark, same building blocks. |
+| Slovenian copy | `lib/i18n/sl.ts`, `lib/i18n/auth-errors.ts`, `lib/format.ts` | Same shell and sign-in words; each repo adds its own pages. |
+| Error tracking | `instrumentation*.ts`, `sentry.*.config.ts`, `app/global-error.tsx` | Identical Sentry wiring. |
+| Email | `lib/email.ts` | Same Resend wrapper (used by Day 2's requests). |
+| AI | `lib/ai.ts`, `lib/ai-budget.ts` | Same `generate()`, OpenRouter or an isolated local Claude, the same daily budget. |
+| Setup | `/nastavitev`, `docs/nastavitev.md`, `scripts/{env-check,db-list,db-run,vercel-env,audit-security}.mjs` | Same steps and helpers; Day 3 adds the owner (`seed:admin`). |
+| RLS discipline | every migration | "Every table enables RLS in the same migration." |
 
-The shared auth + Supabase layer is intentionally frozen so the two repos never drift.
+**One deliberate difference in setup:** on Day 2 everyone signs themselves up, so Supabase
+"Confirm email" is turned **off** (sign-up signs you in at once). On Day 3 colleagues are added
+by the owner in Administracija, already confirmed, so "Confirm email" stays **on**.
+
+**Never share one Supabase project between the two apps.** Both create
+`public.handle_new_user()` and the `on_auth_user_created` trigger; the second app's migration
+would replace the first one's and break its sign-up.
 
 ## The one new concept: modules
 
@@ -31,10 +39,11 @@ Everything different exists to support "one app, many tools, one sign-in, contro
 | `app/(app)/dashboard` + `feature/` | `app/(app)/home` launcher + `app/m/[module]` router | The launcher shows only your modules; the router is the single access guard. |
 | `profiles` + `requests` tables | `core_profiles` (with **role**) + `core_modules` + `core_user_modules` | Access becomes data: who-sees-what is rows, not code. |
 | Auth guard only | Auth guard **+ per-module access check** | A member can't reach a module by URL. |
-| No admin | **Admin module** — the user × module checkbox grid | "The difference between a toy and a company system." |
+| No admin | **Administracija** — users, tools and the user × module grid | "The difference between a toy and a company system." |
 | Tables: `requests` | Tables: **prefixed per module** (`crm_demo_*`) | Data never blurs across modules. |
+| Simple header | Module switcher + ⌘K | Many tools need a way to jump between them. |
 | — | An **external API** integration (`crm_demo` → Intrix, read-only, mock fallback) | The skill founders can't easily self-teach. |
-| `CLAUDE.md` rails | `CLAUDE.md` rails **+ 3 in-repo skills** (`/scaffold-module`, `/check-architecture`, `/integrate-api`) | The "Compound Engineering variation": best practices pre-applied so the agent builds inside the rails. |
+| Skills: `/nastavitev`, `/plan`, `/build`, `/verify`, `/debug`, `/ship`, `/integrate-ai` | The same **+** `/scaffold-module`, `/check-architecture`, `/integrate-api` | The "Compound Engineering variation": best practices pre-applied so the agent builds inside the rails. |
 
 ## The teaching arc
 

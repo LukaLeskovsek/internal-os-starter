@@ -2,9 +2,9 @@
 
 // Password auth (sign up / sign in / sign out) as Server Actions.
 // DONE — do not modify. There is no magic link: sign-in has no email
-// dependency, which is what makes it reliable. For this to work, your Supabase
-// project must have "Confirm email" turned OFF (Dashboard → Authentication →
-// Sign In / Providers → Email). See the README setup step.
+// dependency, which is what makes it reliable. Colleagues are added by the owner
+// in Administracija (already confirmed), so Supabase "Confirm email" can stay on;
+// it only affects public sign-up below.
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
