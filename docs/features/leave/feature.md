@@ -1,12 +1,12 @@
 ---
 module: leave
 title: Dopusti
-status: verified
+status: shipped
 pattern: hitri-vnos
 created: 2026-10-11
 by: Luka Leskovšek
 verified_runs: 2
-live_url:
+live_url: https://internal-os-starter-orpin.vercel.app
 ---
 
 # Dopusti
