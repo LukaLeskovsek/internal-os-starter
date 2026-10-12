@@ -34,11 +34,11 @@ When invoked, create a new module the rails-compliant way. Never hand-create mod
 3. **Migration** — `db/0001_<id>.sql`: the prefixed table(s) **with RLS in the same file**, ending with the catalogue row and the owner grant, as in the template:
    `insert into public.core_modules (id, name) values ('<id>', '<Ime>') on conflict (id) do nothing;`
 4. **Router** — add a `case "<id>": return <NameModule searchParams={sp} />;` to the switch in `app/(app)/m/[module]/page.tsx`.
-5. **⚠️ CRITICAL — run the migration (the module silently fails without it — no table → won't appear or save).** Run it for the user:
+5. **⚠️ CRITICAL — run the migration (the module silently fails without it — no table → won't appear or save).** Run it for the user: apply it through the **Supabase MCP** (`apply_migration`, name `<id>_<file without .sql>`, query = the file) when it is connected; otherwise `npm run db:run -- modules/<id>/db/<file>.sql` (needs `SUPABASE_ACCESS_TOKEN`):
    ```
    npm run db:run -- modules/<id>/db/0001_<id>.sql
    ```
-   Then confirm the table exists. *(Fallback: if `SUPABASE_ACCESS_TOKEN` isn't set, the command tells the user to paste the file into Supabase → SQL Editor — with the token set, you run it.)*
+   Then confirm the table exists (`select to_regclass('public.<id>_<noun>')`). *(Neither the MCP nor a token? Run `/nastavitev` — it connects the Supabase MCP. Pasting into the SQL Editor is the last resort.)*
 6. **Grant** — remind the owner the module appears for them on Home (owners are granted by the migration); grant colleagues in **Administracija** (`/m/admin` → Dostopi).
 7. **Feature Card** — if `docs/features/<id>/feature.md` doesn't exist, create it from the template in `docs/features/README.md` with `module`, `title`, `pattern`, `status: planned`, and the Job & moment, Primary action and Tile line you just agreed.
 

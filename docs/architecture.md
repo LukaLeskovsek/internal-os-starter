@@ -61,7 +61,9 @@ Core calls into modules through the registry; modules never call each other.
 - `lib/action-result.ts`, `lib/module-context.ts` — the action pattern.
 - `app/login/`, `lib/supabase/`, `lib/access.ts` — auth + access checks (pre-built).
 - `supabase/migrations/0001_core.sql` — `core_profiles`, `core_modules`, `core_user_modules`,
-  the `is_owner()` function, RLS, and the first-user-becomes-owner trigger.
+  the `is_owner()` function and RLS. The owner is created by `npm run seed:admin`
+  (0004 removed the old first-user-becomes-owner rule); every later sign-up is a member
+  with no grants. `npm run db:list` gives all core and module migrations in order.
 
 ## Why `is_owner()` is a database function
 

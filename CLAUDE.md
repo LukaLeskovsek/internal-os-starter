@@ -17,6 +17,7 @@ Slash commands still work, but never ask the founder to type one.
 
 | When the founder… | Run |
 |---|---|
+| is setting up the app, a new computer, keys or the first publish ("nastavi mi internal-os") | `/nastavitev` |
 | describes an idea, a new tool, or a change in behaviour | `/plan` (always first — no code before the Card exists) |
 | agrees to the plan ("ja", "naredi", "gremo") or asks for the next step | `/build` — and `/scaffold-module` first if it's a new tool |
 | wants AI to read, draft, sort, summarise or answer | `/integrate-ai` |

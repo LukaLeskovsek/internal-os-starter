@@ -12,7 +12,8 @@ When invoked, get the change to a working public URL — and **confirm** it, don
    **PRs ON:** open a pull request with `gh pr create`, summarize the diff, use the branch's **preview URL** for review, and merge when checks pass. See `docs/workflow-mode.md`.
 4. **Confirm the LIVE url:** open the production URL and check it loads (not a login/401 page), sign-in works, the module's **Home tile** shows its status line and primary action, and the main job from the Feature Card works — once on a phone-sized screen.
    **AI on production:** `AI_BACKEND` must be unset (or `openrouter`) and `OPENROUTER_API_KEY` set in Vercel — `local-claude` only works on your own machine. Check the model ids in `.env.example` still exist at openrouter.ai/models.
-   **New migrations:** every `db/*.sql` this change added must be applied to the production database (`npm run db:run -- <file>` against the production project).
+   **New migrations:** every `db/*.sql` this change added must exist in the database the live app uses. By default local and live share one Supabase project (set up by `/nastavitev`), so it is already applied — confirm with the file's probe (`npm run db:list -- --json`, then `select to_regclass('<probe>')`). A separate production project: apply it there through a Supabase MCP connection scoped to that project.
+   **New keys:** a key this change added to `.env.local` must also be on Vercel — `npm run vercel:env -- --site-url <live url>` (ask first; it sends keys) and redeploy.
 5. **Public check:** if the URL shows a Vercel login / "Authenticate" page, Deployment Protection is on → *Vercel → Settings → Deployment Protection → turn off **Vercel Authentication*** so your pair can open it.
 6. Report the live URL.
 7. **Record the release.** Append `docs/features/<moduleId>/runs/<YYYY-MM-DD-HHMM>-ship.md` (live URL, commit ref — format in `docs/features/README.md`) and set the Card's `status: shipped` and `live_url`.

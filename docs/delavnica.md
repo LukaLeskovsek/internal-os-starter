@@ -2,15 +2,17 @@
 
 S Claudom pripravi svojo aplikacijo v ločeni mapi. Ne potrebuješ predhodnega »Day 2« ali drugega starterja. Začni z eno uporabno funkcijo iz svoje naloge.
 
+**Najhitreje:** v mapi aplikacije v Claude Code napiši »Nastavi mi internal-os«. Skill `/nastavitev` te vodi skozi vse spodaj (račune, ključe, bazo, lastnika, objavo), ključe pa prilepiš sam neposredno v `.env.local`. Navodila za ljudi so v [nastavitev.md](nastavitev.md); ta stran je kontrolni seznam za Clauda.
+
 ## Pripravi svojo kopijo
 
 Uporabi svoj zasebni GitHub repozitorij. Mapa aplikacije naj bo ob mapi delavnice, ne znotraj javnih učnih gradiv ali njihovega moje-delo/. Pred uporabo preveri dejanski račun, vidnost repozitorija in origin. Javnega starterja ne uporabljaj kot cilj za svoje spremembe. GitHubova predloga je tu možnost za novo aplikacijo; gradiva delavnice še naprej posodabljaš z običajnim pullom v njihovi mapi.
 
-Claude naj preveri Node iz .nvmrc in obstoječe namestitve. Uporabi npm ci za odvisnosti iz zaklenjenega seznama, nato npm run lint, npm run build in npm run audit:security. Uspešna sestava še ne potrjuje prijave ali dostopa do podatkov.
+Claude naj preveri Node iz .nvmrc in obstoječe namestitve. Uporabi npm ci za odvisnosti iz zaklenjenega seznama, nato npm run lint in npm run build. npm run audit:security je informativen: trenutno javlja znane opozorila odvisnosti (glej docs/security.md) in ni pogoj za začetek. Uspešna sestava še ne potrjuje prijave ali dostopa do podatkov.
 
 ## Računi in podatki
 
-Za lokalni zagon potrebuješ svoj Supabase projekt. Claude naj preveri ciljni projekt pred migracijami iz README, nato pomaga ustvariti začetnega lastnika. V obstoječem projektu naj najprej preveri uporabljene migracije; ne zaganjaj vseh ponovno na slepo. Ključe vneseš v .env.local, brez kopiranja v pogovor. Potrditev elektronskega naslova ohrani za resnične uporabnike; morebitna poenostavitev je omejena na izrecno dogovorjen testni projekt.
+Za lokalni zagon potrebuješ svoj Supabase projekt, povezan s Claudom prek Supabase MCP (omejeno na ta projekt). Claude naj preveri ciljni projekt, nato z npm run db:list in preverbo tabel uporabi samo manjkajoče migracije (jedro in vsi moduli); ne zaganjaj vseh ponovno na slepo. Nato z npm run seed:admin ustvari začetnega lastnika. Ključe vneseš v .env.local, brez kopiranja v pogovor; npm run env:check pokaže, kaj je izpolnjeno. Potrditev elektronskega naslova ostane vklopljena; sodelavce dodaja lastnik v Administraciji.
 
 Vercel pripravi ob objavi. Resend, Sentry in Intrix so dodatki glede na nalogo. Za prikaz ne uporabljamo skupnih ključev izvajalca. Za AI v aplikaciji uporabi svoj OpenRouter API ključ in preverjen model ter omeji porabo; naročnina na Claude Desktop tega dostopa ne nadomesti. Za prvi modul lahko uporabiš shranjene predloge brez klica modela.
 

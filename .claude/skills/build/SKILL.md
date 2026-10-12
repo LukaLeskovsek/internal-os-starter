@@ -19,7 +19,7 @@ Read the accepted plan and CLAUDE.md profile guidance. Reuse agreed decisions. A
    - Lists are `DataList`/`ListRow` with the next step as a row button; `EmptyState` offers the primary action.
    - Actions start with `moduleContext("<id>")`, return `ActionResult`, call `revalidatePath`. No `redirect()` for feedback.
    - Copy goes in `strings.ts` (Slovenian); dates/money/plurals through `lib/format.ts`.
-4. **Then the storage the flow needs.** New table? It must be **prefixed** (`<moduleId>_*`) with **RLS policies in the same migration**. Never read another module's tables. **Run the migration** — `npm run db:run -- modules/<id>/db/<file>.sql` — and confirm the table exists. *(No token set? The command tells the user to paste it in Supabase.)*
+4. **Then the storage the flow needs.** New table? It must be **prefixed** (`<moduleId>_*`) with **RLS policies in the same migration**. Never read another module's tables. **Run the migration** — apply it through the **Supabase MCP** (`apply_migration`, name `<id>_<file without .sql>`, query = the file) when it is connected; otherwise `npm run db:run -- modules/<id>/db/<file>.sql` (needs `SUPABASE_ACCESS_TOKEN`) — and confirm the table exists. *(Neither available? `/nastavitev` connects the Supabase MCP.)*
 5. Keep `summary.ts` (Home tile line) and the registry `primaryAction` in step with the Card.
 6. Run `npx tsc --noEmit && npm run lint`. If red, fix before continuing. Run `npm run build` only if `npm run dev` is not running.
 7. Show the change in plain language (what the person can now do, in how many clicks); commit.
