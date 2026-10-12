@@ -74,7 +74,7 @@ export const sl = {
     forgotText: "Pošljemo ti povezavo za novo geslo.",
     forgotSend: "Pošlji povezavo",
     forgotSending: "Pošiljam…",
-    forgotSent: "Če ta naslov ima račun, smo poslali povezavo. Odpri najnovejše sporočilo v tem brskalniku.",
+    forgotSent: "Če ima ta naslov račun, smo poslali povezavo. Odpri najnovejše sporočilo v tem brskalniku.",
     backToSignIn: "Nazaj na prijavo",
     recoveryTitle: "Nastavi novo geslo",
     recoveryValid: "Nadaljuj in izberi novo geslo. Povezavo lahko uporabiš le enkrat.",

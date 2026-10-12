@@ -10,7 +10,7 @@ const MAP: [RegExp, string][] = [
   [/disabled/i, "Tvoj račun je onemogočen. Obrni se na lastnika."],
   [/invalid.*email|unable to validate email/i, "Vpiši veljaven e-poštni naslov."],
   [/same password|different from the old/i, "Novo geslo mora biti drugačno od starega."],
-  [/expired|invalid.*(link|token)|otp/i, "Povezava je potekla ali ni veljavna. Zahtevaj novo."],
+  [/expired|invalid.*(link|token)|otp|could not be accepted/i, "Povezava je potekla ali ni veljavna. Zahtevaj novo."],
   [/^request$/i, "Zahteve ni bilo mogoče poslati. Preveri naslov in poskusi znova."],
 ];
 
