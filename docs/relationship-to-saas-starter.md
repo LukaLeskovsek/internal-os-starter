@@ -17,7 +17,7 @@ Both were brought to the same level on 2026-10-12.
 | Slovenian copy | `lib/i18n/sl.ts`, `lib/i18n/auth-errors.ts`, `lib/format.ts` | Same shell and sign-in words; each repo adds its own pages. |
 | Error tracking | `instrumentation*.ts`, `sentry.*.config.ts`, `app/global-error.tsx` | Identical Sentry wiring. |
 | Email | `lib/email.ts` | Same Resend wrapper (used by Day 2's requests). |
-| AI | `lib/ai.ts`, `lib/ai-budget.ts` | Same `generate()`, OpenRouter or an isolated local Claude, the same daily budget. |
+| AI | `lib/ai.ts`, `lib/ai-budget.ts` | Same `generate()`: verified local Claude by default; explicit OpenRouter with the daily API call budget. |
 | Setup | `/nastavitev`, `docs/nastavitev.md`, `scripts/{env-check,db-list,db-run,vercel-env,audit-security}.mjs` | Same steps and helpers; Day 3 adds the owner (`seed:admin`). |
 | RLS discipline | every migration | "Every table enables RLS in the same migration." |
 

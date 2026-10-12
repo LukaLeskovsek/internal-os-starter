@@ -18,7 +18,7 @@ When invoked, work the problem methodically. The enemy is guessing and changing 
 ## Known traps in this repo (check these first)
 - **Page shows stale or half-built output after `npm run build`:** a build ran while `npm run dev` was running — both write `.next`. Stop dev, `rm -rf .next`, start dev again.
 - **Dev server rebuilding every second, high CPU, saves that never arrive:** something is writing files into the repo (tool logs, reports). Make sure the folder is ignored in `next.config.ts` (`watchOptions.ignored`) and in `app/globals.css` (`@source not`).
-- **AI answers are a "Demo odgovor" / invoices read as the sample:** no `OPENROUTER_API_KEY` and `AI_BACKEND` isn't `local-claude` (or `claude` isn't logged in) — the server log says which (`[ai] …`).
+- **AI answers are a "Demo odgovor" / invoices read as the sample:** OpenRouter mode has no key. Local mode instead fails explicitly on missing subscription auth or inference errors; it never falls back to sample output. Run env:check and verify the installed claude.ai login without reading credentials.
 - **A module or its tile is missing / "Do tega orodja nimaš dostopa":** the module's migration wasn't run (`npm run db:list -- --json` + probe query shows which), or the user isn't granted it in Administracija → Dostopi, or it's switched off in Orodja.
 - **AI fails with an error as soon as `OPENROUTER_API_KEY` is set:** core migration `0005_ai_usage` never ran (`record_core_ai_usage` missing) — apply it.
 - **Keys / setup look wrong:** `npm run env:check` (never prints values); `/nastavitev` re-checks every setup step.

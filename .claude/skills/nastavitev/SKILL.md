@@ -45,7 +45,7 @@ list whenever the person comes back ("nadaljuj nastavitev").
 
 | # | Check | How |
 |---|---|---|
-| 1 | Tools | `node -v` (≥ 22), `git --version`, `gh --version`, `gh auth status` |
+| 1 | Tools | `node -v` (≥ 22), `git --version`, `gh --version`, `gh auth status`, `claude --version` |
 | 2 | Own copy | `gh repo view --json nameWithOwner,visibility` — their account, `PRIVATE`; not `LukaLeskovsek/internal-os-starter` |
 | 3 | Supabase project + MCP | Supabase MCP tools available (e.g. `get_project_url`) and answering for one project |
 | 4 | Keys | `npm run env:check` — Supabase lines ✓ |
@@ -53,11 +53,13 @@ list whenever the person comes back ("nadaljuj nastavitev").
 | 6 | Database | probe query from Step 6 → all `true` |
 | 7 | Owner | MCP `execute_sql`: `select count(*) from public.core_profiles where role = 'owner' and not disabled` → ≥ 1 |
 | 8 | Runs locally | `curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/login` → 200 |
-| 9 | AI (optional) | `env:check`: `OPENROUTER_API_KEY` ✓, or the person chose demo answers / `local-claude` |
+| 9 | AI (optional) | `env:check`: local subscription auth ✓, or explicitly selected hosted/API mode with a capped key; real call verified separately |
 | 10 | Live (optional) | `.vercel/project.json` exists and the live `/login` returns 200 |
 | 11 | Profile (optional) | `.claude/profile-location.local.md` exists |
 
 ## Step 1 — Tools on the computer
+
+- **Claude Code CLI for local app AI:** check `claude --version` first. Desktop Code alone does not prove that the app can invoke `claude` on PATH. If missing, use the official platform-specific native installer from https://code.claude.com/docs/en/setup; preserve working installs. The person signs in with their own Claude subscription; then env:check validates the same isolated environment used by the app. Never create or request an API key for this local path.
 
 - **Node 22+:** missing or older → open `https://nodejs.org/en/download` (LTS installer); they run it,
   then restart the terminal and Claude Code.
@@ -148,14 +150,17 @@ Check: the owner query from Step 0 → ≥ 1. If the link says it is invalid: ru
 
 ## Step 9 — AI in the app (optional)
 
-Ask what they want:
-- **Demo answers** (no key, no cost) → nothing to do.
-- **Real AI** → open `https://openrouter.ai/settings/keys` (sign-up first). They add a small credit,
-  create a key **with a credit limit** (e.g. 5 USD), and paste it after `OPENROUTER_API_KEY=` in
-  `.env.local` (same hand-off as Step 4). You set `AI_BACKEND=openrouter`. Check: `env:check`.
-- **Their Claude subscription, only on this computer** → `AI_BACKEND=local-claude`; make sure
-  `ANTHROPIC_API_KEY` is not set. Not for the live app.
-Restart `npm run dev` after changing `.env.local`.
+Local workshop default is `AI_BACKEND=local-claude`. Reuse the existing Claude login;
+run `npm run env:check` to confirm an installed claude.ai subscription, not Console
+OAuth or an API credential. Check plan limits and optional paid usage credits in
+the user's account. Text/images/PDFs share the same isolated local path.
+
+No valid login or a failed call means an explicit failure, never automatic API or
+sample-output fallback. Do not expose the local CLI through a tunnel or to others.
+The app may still run without AI. OpenRouter is a separate explicit choice for
+hosted AI: user enters a capped key directly in `.env.local`, disables auto top-up,
+sets `AI_BACKEND=openrouter` and verifies the selected model. Preserve the daily
+application call cap as well. Do not print credentials or invent a successful call.
 
 ## Step 10 — Live on the internet (optional, when they want to share it)
 

@@ -14,9 +14,9 @@ Claude naj preveri Node iz .nvmrc in obstoječe namestitve. Uporabi npm ci za od
 
 Za lokalni zagon potrebuješ svoj Supabase projekt, povezan s Claudom prek Supabase MCP (omejeno na ta projekt). Claude naj preveri ciljni projekt, nato z npm run db:list in preverbo tabel uporabi samo manjkajoče migracije (jedro in vsi moduli); ne zaganjaj vseh ponovno na slepo. Nato z npm run seed:admin ustvari začetnega lastnika. Ključe vneseš v .env.local, brez kopiranja v pogovor; npm run env:check pokaže, kaj je izpolnjeno. Potrditev elektronskega naslova ostane vklopljena; sodelavce dodaja lastnik v Administraciji.
 
-Vercel pripravi ob objavi. Resend, Sentry in Intrix so dodatki glede na nalogo. Za prikaz ne uporabljamo skupnih ključev izvajalca. Za AI v aplikaciji uporabi svoj OpenRouter API ključ in preverjen model ter omeji porabo; naročnina na Claude Desktop tega dostopa ne nadomesti. Za prvi modul lahko uporabiš shranjene predloge brez klica modela.
+Vercel pripravi ob objavi. Resend, Sentry in Intrix so dodatki glede na nalogo. Za prikaz ne uporabljamo skupnih ključev izvajalca. Lokalni AI uporablja tvojo preverjeno naročnino Claude prek nameščenega Claude Code. Za AI v objavljeni aplikaciji posebej uporabi svoj OpenRouter ključ, preverjen model in omejitve porabe; naročnina Desktop ni ključ za ta API. Za prvi modul lahko uporabiš shranjene predloge brez klica modela.
 
-AI_BACKEND=openrouter je osnovna pot za aplikacijo. local-claude ni del delavniške priprave večuporabniške ali gostovane aplikacije. Mock izhod vedno označi; ne šteje kot delujoč model.
+Lokalno je privzeto AI_BACKEND=local-claude. npm run env:check preveri tudi naročniško prijavo; brez nje se AI-dejanje ustavi. Na Vercelu je local-claude zavrnjen. AI_BACKEND=openrouter izberemo posebej za gostovano AI; brez ključa lahko aplikacija deluje brez prave AI. Napake nikoli ne predstavimo kot delujoč model.
 
 ## Poveži obstoječi profil
 

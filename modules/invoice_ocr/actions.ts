@@ -14,6 +14,7 @@ import { z } from "zod";
 import { moduleContext } from "@/lib/module-context";
 import { ok, fail, fromZod, type ActionResult } from "@/lib/action-result";
 import { AiDailyLimitError, recordAiUsage } from "@/lib/ai-budget";
+import { aiErrorMessage } from "@/lib/ai";
 import { sl } from "@/lib/i18n/sl";
 import { extractInvoice, emptyInvoiceFields, type InvoiceFields, type LineItem } from "./lib/ocr";
 import { parseAmount } from "./lib/invoice-format";
@@ -47,8 +48,8 @@ export async function uploadInvoice(
     await recordAiUsage(supabase, MODULE);
   } catch (e) {
     if (e instanceof AiDailyLimitError) return fail(sl.errors.aiLimit);
-    console.error("invoice_ocr usage check failed", e);
-    return fail(sl.errors.generic);
+    console.error("invoice_ocr usage check failed");
+    return fail(aiErrorMessage(e));
   }
 
   // 1) Keep the original in the private bucket. The path must start with the owner's
@@ -64,8 +65,8 @@ export async function uploadInvoice(
   }
 
   // 2) The AI reads it, server-side. No key → a sample invoice (mock), so the flow demos.
-  //    A failed read still creates the row with empty fields; the review screen flags
-  //    them and the person fills them in from the original.
+  //    A failed read removes the uploaded file and returns an explicit error;
+  //    it cannot create a successful-looking invoice with invented fields.
   let extracted: { data: InvoiceFields; lineItems: LineItem[]; raw: string; mock: boolean } = {
     data: emptyInvoiceFields(),
     lineItems: [],
@@ -79,7 +80,9 @@ export async function uploadInvoice(
       filename: file.name,
     });
   } catch (e) {
-    console.error("invoice_ocr extract failed", e);
+    console.error("invoice_ocr extract failed");
+    await supabase.storage.from(MODULE).remove([path]);
+    return fail(aiErrorMessage(e));
   }
 
   // 3) The invoice header row, queued for review.

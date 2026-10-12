@@ -1,4 +1,5 @@
 import "server-only";
+import { aiBackend } from "./ai-backend.mjs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const DEFAULT_DAILY_LIMIT = 20;
@@ -21,7 +22,7 @@ export async function recordAiUsage(
   supabase: SupabaseClient,
   feature: string,
 ) {
-  if (!process.env.OPENROUTER_API_KEY) return;
+  if (aiBackend() !== "openrouter" || !process.env.OPENROUTER_API_KEY) return;
 
   const limit = dailyLimit();
   const { data: recorded, error } = await supabase.rpc("record_core_ai_usage", {

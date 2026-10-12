@@ -82,12 +82,13 @@ Pri vsakem koraku piše, kaj naredi Claude in kaj ti.
 - **Ti** klikneš **Nadaljuj** in si nastaviš geslo. Na začetni strani vidiš vsa orodja.
 
 ### 9. Umetna inteligenca (neobvezno)
-Izbereš eno od treh možnosti:
-- **Demo odgovori:** brez stroškov, nič ni treba narediti.
-- **Prava AI:** Claude odpre OpenRouter. Ti dodaš nekaj dobroimetja, ustvariš ključ **z omejitvijo
-  porabe** (npr. 5 USD) in ga prilepiš v `.env.local`, tako kot v 4. koraku.
-- **Tvoja naročnina Claude, samo na tem računalniku:** Claude to nastavi sam. Za objavljeno
-  aplikacijo ne deluje.
+Pri lokalnem razvoju je privzeta tvoja naročnina Claude. Claude preveri prijavo,
+namestitev in klic brez osebnih orodij. Če AI ne potrebuješ, lahko nadaljuješ z
+ostalimi funkcijami aplikacije.
+
+Za AI v objavljeni aplikaciji posebej pripravi OpenRouter. Ključ vneseš neposredno
+v `.env.local`, določiš omejitev porabe in izklopiš samodejno polnjenje. Claude
+preveri model in dnevni limit klicev. Lokalna napaka te izbire ne opravi namesto tebe.
 
 ### 10. Na internet, za sodelavce (neobvezno)
 - **Ti** se z GitHubom prijaviš v Vercel in uvoziš svoj repozitorij. Potem napišeš
@@ -115,9 +116,17 @@ Izbereš eno od treh možnosti:
 |---|---|
 | Orodja ali ploščice ni na začetni strani | Reci »nadaljuj nastavitev«. Claude preveri bazo in dostope. |
 | »Povezava ni veljavna« pri nastavljanju gesla | Reci »pošlji mi novo povezavo za lastnika«. Povezava velja samo enkrat. |
-| AI vrača »Demo odgovor« | Ključa OpenRouter ni ali je napačen. Reci »preveri ključe«. |
+| AI vrača »Demo odgovor« | API ni povezan; vzorčni odgovor ni pravi rezultat. Reci »preveri nastavitev AI«. |
 | Živa stran zahteva prijavo v Vercel | Izklopi Vercel Authentication (10. korak). |
 | Po prijavi na živi strani te vrže nazaj na prijavo | Živi naslov manjka med Redirect URLs v Supabase (10. korak). |
 | Karkoli drugega | Opiši, kaj si naredil in kaj vidiš. Claude to razišče korak za korakom. |
 
 Za tehnične podrobnosti glej `README.md`, `docs/architecture.md` in `docs/security.md`.
+
+## AI pri lokalnem razvoju in pri objavi
+
+Pri lokalni pripravi nastavimo `AI_BACKEND=local-claude`. Claude preveri svojo namestitev in naročniško prijavo; `npm run env:check` pokaže le stanje, nikoli ključev. Pred prvim rezultatom preveri tudi omejitve paketa in morebitne dodatno plačljive dobropise na svojem računu. Če prijava ni prava ali klic ne uspe, se AI ustavi. Ne uporabi plačljivega API-ja ali vzorčnega odgovora.
+
+Aplikacija je lahko lokalna, Supabase pa že v oblaku. `localhost:3000` je naslov aplikacije na tvojem računalniku; ne zagotavlja lokalne hrambe podatkov.
+
+Na Vercelu lokalne naročnine ne uporabljamo. Aplikacija lahko deluje brez AI. Ko AI potrebuje ekipa, posebej nastavi `AI_BACKEND=openrouter`, svoj ključ z omejitvijo porabe, brez samodejnega polnjenja, ter preverjeni model. Dnevni limit klicev v aplikaciji in denarni limit ključa sta dve različni omejitvi. Napake proračuna ne ponavljamo samodejno.

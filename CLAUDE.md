@@ -128,7 +128,7 @@ actions take typed arguments (`setStatus(id, "v_delu")`) and are called through
 - **External APIs: server-side only, key from `process.env`. Read before write** —
   a write call back to an external API needs explicit owner approval in the spec.
   Use `/integrate-api`; model it on `modules/crm_demo/lib/intrix.ts`.
-- **AI in a module: server-side, through `lib/ai.ts`.** Never call an LLM from a
+- **AI in a module: server-side, through `lib/ai.ts`.** Local defaults to a verified Claude subscription (`local-claude`); API requires explicit `openrouter` selection. On Vercel only `openrouter` is allowed and a missing key means no real AI. Never fall back from a failed local call to API or sample output. Never call an LLM from a
   client component or expose `OPENROUTER_API_KEY`. Store AI output in the module's
   own prefixed, RLS-scoped table; read only this module's data. Use `/integrate-ai`;
   model it on the `ai_assist` module.

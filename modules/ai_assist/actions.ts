@@ -6,7 +6,7 @@
 // See /integrate-ai.
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { generate } from "@/lib/ai";
+import { generate, aiErrorMessage } from "@/lib/ai";
 import { AiDailyLimitError, recordAiUsage } from "@/lib/ai-budget";
 import { fail, fromZod, ok, type ActionResult } from "@/lib/action-result";
 import { moduleContext } from "@/lib/module-context";
@@ -53,8 +53,8 @@ export async function askAssistant(question: string): Promise<ActionResult<Threa
     answer = result.text;
   } catch (e) {
     if (e instanceof AiDailyLimitError) return fail(sl.errors.aiLimit);
-    console.error("ai_assist generate failed", e);
-    return fail(sl.errors.aiFailed);
+    console.error("ai_assist generate failed");
+    return fail(aiErrorMessage(e));
   }
 
   const { data, error } = await supabase

@@ -11,30 +11,24 @@
 // data), call generate(), store the result in the module's prefixed RLS table,
 // render it. The ai_assist module is the worked example. Use /integrate-ai.
 import "server-only";
+import { sl } from "./i18n/sl";
 import OpenAI from "openai";
 import { spawn } from "node:child_process";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { aiBackend, localClaudeEnv, isSubscriptionAuth, AiSetupError } from "./ai-backend.mjs";
+export { AiSetupError } from "./ai-backend.mjs";
 
 // Cheap + fast default for a workshop (the key is capped). Verify the current slug
 // at openrouter.ai/models; bump to a stronger Claude model if you want.
 const DEFAULT_MODEL = process.env.OPENROUTER_MODEL ?? "anthropic/claude-3.5-haiku";
 
-// Which engine answers generate():
-//   "openrouter" (default) — pay-as-you-go API via the capped OpenRouter key.
-//   "local-claude"         — offload to the local Claude Code CLI (`claude -p`):
-//                            your Claude SUBSCRIPTION answers — no API key, no
-//                            per-token spend. Works only where `claude` is
-//                            installed + logged in (your own machine), so use it
-//                            for local single-player dev; leave it unset on a
-//                            deployed server (Vercel) and it uses OpenRouter.
-// Set AI_BACKEND in .env.local.
-const BACKEND = process.env.AI_BACKEND ?? "openrouter";
-
-/** True when an engine can answer for real (an API key, or the local Claude CLI). */
+// Local defaults to the verified subscription path; Vercel uses OpenRouter.
+// A local OpenRouter call requires an explicit AI_BACKEND=openrouter choice.
+/** Configuration indicator only; local subscription authentication is checked at call time. */
 export function aiConfigured(): boolean {
-  return BACKEND === "local-claude" || Boolean(process.env.OPENROUTER_API_KEY);
+  return aiBackend() === "local-claude" || Boolean(process.env.OPENROUTER_API_KEY);
 }
 
 /**
@@ -47,7 +41,7 @@ export async function generate(params: {
   system?: string;
   model?: string;
 }): Promise<{ text: string; mock: boolean }> {
-  if (BACKEND === "local-claude") {
+  if (aiBackend() === "local-claude") {
     return generateViaLocalClaude(params);
   }
 
@@ -56,7 +50,7 @@ export async function generate(params: {
     return { text: mockOutput(), mock: true };
   }
 
-  const client = new OpenAI({ apiKey, baseURL: "https://openrouter.ai/api/v1" });
+  const client = new OpenAI({ apiKey, baseURL: "https://openrouter.ai/api/v1", maxRetries: 0 });
 
   const res = await client.chat.completions.create({
     model: params.model ?? DEFAULT_MODEL,
@@ -73,10 +67,10 @@ export async function generate(params: {
 }
 
 /**
- * Offload one call to the local Claude Code CLI (`claude -p`). Your Claude
- * SUBSCRIPTION answers — no API key, no per-token billing (while Anthropic keeps
- * headless `claude -p` on subscription billing). If `claude` isn't installed /
- * logged in, or it errors, we fall back to mock so the module still works.
+ * Offload one call to the local Claude Code CLI (`claude -p`). A verified subscription
+ * login answers within its plan limits. Paid usage credits are separate account
+ * settings. Authentication is checked before inference. Missing login or failure
+ * throws an explicit setup error; there is no API or sample-output fallback.
  *
  * SECURITY: the (untrusted) prompt is written to the child's STDIN, never passed
  * as an argv element — so a prompt that starts with "-" can't be smuggled in as a
@@ -91,21 +85,22 @@ async function generateViaLocalClaude(params: {
   system?: string;
 }): Promise<{ text: string; mock: boolean }> {
   const text = await runLocalClaude({ system: params.system, stdin: params.prompt });
-  return text ? { text, mock: false } : { text: mockOutput(), mock: true };
+  if (!text) throw new AiSetupError("local-unavailable");
+  return { text, mock: false };
 }
 
 /**
  * One call with a FILE attached (an image or a PDF) — e.g. reading an invoice.
- * Only the local-claude backend is handled here: it returns the model's text, or
- * null when `claude -p` failed. For any other backend it returns undefined and the
+ * Only the local-claude backend is handled here: it returns the model's text or
+ * throws when authentication or inference failed. For any other backend it returns undefined and the
  * module uses its own client (invoice_ocr has an OpenRouter vision client).
  */
 export async function generateFromFile(params: {
   system: string;
   prompt: string;
   file: { base64: string; mime: string };
-}): Promise<string | null | undefined> {
-  if (BACKEND !== "local-claude") return undefined;
+}): Promise<string | undefined> {
+  if (aiBackend() !== "local-claude") return undefined;
   const isPdf = params.file.mime === "application/pdf";
   const media = {
     type: isPdf ? "document" : "image",
@@ -116,11 +111,13 @@ export async function generateFromFile(params: {
     type: "user",
     message: { role: "user", content: [media, { type: "text", text: params.prompt }] },
   });
-  return runLocalClaude({ system: params.system, stdin: message + "\n", streamJson: true });
+  const result = await runLocalClaude({ system: params.system, stdin: message + "\n", streamJson: true });
+  if (!result) throw new AiSetupError("local-unavailable");
+  return result;
 }
 
 /** Runs `claude -p` isolated; resolves the answer text, or null on any failure. */
-function runLocalClaude({
+async function runLocalClaude({
   system,
   stdin,
   streamJson = false,
@@ -129,19 +126,16 @@ function runLocalClaude({
   stdin: string;
   streamJson?: boolean;
 }): Promise<string | null> {
-  const env = { ...process.env };
-  delete env.ANTHROPIC_API_KEY; // force subscription auth, never pay-as-you-go
+  const env = localClaudeEnv();
+  const cwd = neutralDir();
+  await verifySubscription(env, cwd);
 
   // The module's system line REPLACES Claude Code's own system prompt, so the
   // answer comes from the app's instructions, not a coding agent's.
   const systemLine = system ?? "Si jedrnat in prijazen pomočnik. Odgovarjaj v slovenščini.";
 
-  // Optional: point AI_BRAIN_DIR at a company-brain folder and Claude auto-loads
-  // that folder's CLAUDE.md / PERSON / COMPANY / BRAND as grounding. Omit to run
-  // without it. Never default to this app's root (the server's cwd) — that loads
-  // the dev rules in CLAUDE.md into every answer — so blank means a private empty dir.
-  const cwd = process.env.AI_BRAIN_DIR || neutralDir();
-
+  // Always use a private neutral directory. Company rules belong in the module's
+  // reviewed system prompt, not in the operator's project settings or tools.
   return new Promise((resolve) => {
     // Only FIXED flags are argv; the prompt goes on stdin (see SECURITY above).
     // Isolation: without these flags the child inherits the operator's own Claude
@@ -157,6 +151,7 @@ function runLocalClaude({
         ? ["--input-format", "stream-json", "--output-format", "stream-json", "--verbose"]
         : ["--output-format", "text"]),
       "--setting-sources", "project",
+      "--no-session-persistence",
       "--strict-mcp-config",
       "--tools", "",
       // `=` form: the value can never be parsed as another flag, even if it
@@ -173,6 +168,7 @@ function runLocalClaude({
       resolve(v);
     };
     const timer = setTimeout(() => { child.kill("SIGKILL"); done(null); }, 120_000);
+    child.stderr.resume();
     child.stdout.on("data", (d) => {
       out += d.toString();
       if (out.length > 8 * 1024 * 1024) child.kill("SIGKILL"); // cap runaway output
@@ -195,6 +191,33 @@ function runLocalClaude({
   });
 }
 
+async function verifySubscription(env: NodeJS.ProcessEnv, cwd: string): Promise<void> {
+  const status = await new Promise<unknown>((resolve) => {
+    const child = spawn("claude", ["auth", "status", "--json"], { env, cwd });
+    let output = "";
+    let settled = false;
+    const finish = (value: unknown) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const timer = setTimeout(() => { child.kill("SIGKILL"); finish(null); }, 10_000);
+    child.stdout.on("data", (d) => {
+      output += d.toString();
+      if (output.length > 64 * 1024) { child.kill("SIGKILL"); finish(null); }
+    });
+    child.stderr.resume(); // never expose login/account details
+    child.stdin.end();
+    child.on("error", () => finish(null));
+    child.on("close", (code) => {
+      if (code !== 0) return finish(null);
+      try { finish(JSON.parse(output)); } catch { finish(null); }
+    });
+  });
+  if (!isSubscriptionAuth(status)) throw new AiSetupError("subscription-login");
+}
+
 // A private (0700), empty working dir for `claude -p`. Never the shared /tmp
 // itself: Claude Code loads CLAUDE.md and .claude/settings.json (hooks!) from its
 // cwd, so a world-writable dir would let another local user inject config.
@@ -208,9 +231,22 @@ function mockOutput(): string {
   // Shown to people, so Slovenian and free of developer words. The "why" goes
   // to the server log for whoever runs the app.
   console.warn(
-    BACKEND === "local-claude"
-      ? "[ai] AI_BACKEND=local-claude but `claude -p` failed — is Claude Code installed and logged in?"
-      : "[ai] No OPENROUTER_API_KEY — returning a demo answer.",
+    "[ai] OpenRouter key is not configured; returning explicitly labelled demo output.",
   );
   return "Demo odgovor: AI še ni povezan, zato je to vzorčno besedilo. Ko ga skrbnik poveže, boš tu dobil pravi odgovor.";
+}
+
+/** Safe UI explanations; never return provider error bodies or credential metadata. */
+export function aiErrorMessage(error: unknown): string {
+  if (error instanceof AiSetupError) {
+    if (error.code === "subscription-login") return sl.errors.aiSubscription;
+    if (error.code === "local-unavailable") return sl.errors.aiLocalUnavailable;
+    if (error.code === "hosted-local") return sl.errors.aiHostedLocal;
+    return sl.errors.aiConfiguration;
+  }
+  const status = (error as { status?: number } | null)?.status;
+  const metadata = (error as { error?: { metadata?: { limit_source?: string } }; limitSource?: string } | null);
+  const source = metadata?.limitSource ?? metadata?.error?.metadata?.limit_source;
+  if (status === 402 || (status === 403 && source?.startsWith("openrouter_"))) return sl.errors.aiBudget;
+  return sl.errors.aiFailed;
 }

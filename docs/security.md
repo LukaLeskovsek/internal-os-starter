@@ -42,6 +42,25 @@ login and the intended module in the target environment. The Edge runtime warnin
 from Supabase also needs target-environment verification; a successful build does
 not prove authentication works.
 
-The workshop uses OpenRouter for any application model calls. The optional
-local-claude backend is outside the workshop's hosted or multi-user setup; do not
-expose it to other users as part of this preparation.
+## Local AI boundary (2026-10-12)
+
+Local defaults to `local-claude`, including local production builds. Each call
+checks `claude auth status --json` in the same isolated environment; only an
+installed claude.ai subscription login is accepted. Environment API/gateway and
+provider settings are removed. The CLI uses a private neutral directory, no MCP,
+no tools and no persistent session. Reviewed module prompts supply business context.
+Failure throws a safe setup error, with no API or sample-output fallback.
+
+Text and file calls share this check. Vercel refuses `local-claude`. Deployed AI
+uses explicitly configured OpenRouter; no key means no real model. The API key
+must have a spending cap with auto top-up disabled. Calls have no automatic retry;
+provider budget errors become a user-facing budget message. The existing atomic
+per-user daily call cap remains separate from the provider's currency budget.
+
+The subscription still has plan limits and may have paid usage credits enabled
+in the account. The application cannot prove those account settings. Check them
+before the workshop. Never expose your local subscription CLI to a team or through
+a tunnel. The hosted app is the shared platform; local AI is single-user development.
+
+No authentication tables, RLS policies or admin privileges changed in this update.
+The dependency findings above remain a deployment gate, not a resolved audit.

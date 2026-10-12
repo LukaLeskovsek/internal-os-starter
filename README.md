@@ -141,3 +141,9 @@ Ponovno objavi (Redeploy), živi naslov dodaj v Supabase **URL Configuration** i
 - Skrivnosti so v `.env.local` in na Vercelu, nikoli v kodi ali v klepetu.
 - Varnost: `docs/security.md`.
 - Povezava z aplikacijo z 2. dne: `docs/relationship-to-saas-starter.md`.
+
+### AI: lokalna priprava in objava
+
+Lokalno je privzeta pot preverjeni naročniški račun Claude (`AI_BACKEND=local-claude`). Preverjanje okolja potrdi način prijave; vsak AI-klic ga preveri ponovno. Lokalna napaka ne sproži API-ja ali navideznega rezultata. Prijava v Console sama po sebi ni naročnina.
+
+Na Vercelu je lokalni Claude zavrnjen. Aplikacija lahko deluje brez AI; za uporabo modela prek OpenRouterja posebej pripravi ključ z omejitvijo porabe, model in dnevni limit klicev. Omejitve naročnine in morebitne dodatne dobropise preveri pri ponudniku. [Priprava](docs/nastavitev.md) · [Meje preverjanja in varnost](docs/security.md).

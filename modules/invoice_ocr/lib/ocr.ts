@@ -168,8 +168,10 @@ export async function extractInvoice(params: {
   });
   if (!res.ok) {
     // Surface WHY (e.g. a bad/retired model slug returns 400 "model not found").
-    const detail = await res.text().catch(() => "");
-    throw new Error(`OpenRouter OCR failed: ${res.status} ${detail.slice(0, 300)}`);
+    const body = await res.json().catch(() => null) as { error?: { metadata?: { limit_source?: string } } } | null;
+    throw Object.assign(new Error("OpenRouter OCR failed"), {
+      status: res.status, limitSource: body?.error?.metadata?.limit_source,
+    });
   }
 
   const json = (await res.json()) as {

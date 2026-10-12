@@ -5,7 +5,11 @@
 //   npm run env:check
 //
 // Exit code 1 when a required key is missing or malformed.
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { aiBackend, localClaudeEnv, isSubscriptionAuth } from "../lib/ai-backend.mjs";
 
 const CHECKS = [
   // [name, required?, test, what it should look like]
@@ -50,8 +54,31 @@ for (const [name, required, test, shape] of CHECKS) {
   }
 }
 
-if (env.AI_BACKEND === "local-claude" && env.ANTHROPIC_API_KEY) {
-  console.log("⚠ ANTHROPIC_API_KEY je nastavljen ob AI_BACKEND=local-claude — odstrani ga (sicer plačuješ API).");
+try {
+  const merged = { ...process.env, ...env };
+  const backend = aiBackend(merged);
+  console.log(`✓ AI_BACKEND — ${backend}`);
+  if (backend === "local-claude") {
+    const cwd = mkdtempSync(join(tmpdir(), "internal-os-auth-check-"));
+    try {
+      const result = spawnSync("claude", ["auth", "status", "--json"], {
+        env: localClaudeEnv(merged), cwd, encoding: "utf8", timeout: 10_000,
+        maxBuffer: 64 * 1024, stdio: ["ignore", "pipe", "ignore"],
+      });
+      let status;
+      try { status = JSON.parse(result.stdout || "null"); } catch { status = null; }
+      if (result.status !== 0 || !isSubscriptionAuth(status)) {
+        bad++;
+        console.log("✗ Lokalni AI — naročniška prijava ni potrjena. Prijavi se v Claude Code s svojim računom Claude.");
+      } else console.log("✓ Lokalni AI — naročniška prijava potrjena; preveri še omejitve paketa in dodatne dobropise v računu.");
+      if (merged.OPENROUTER_API_KEY || Object.keys(merged).some(k => k.startsWith("ANTHROPIC_"))) {
+        console.log("· Lokalni klic odstrani okoljske ključe in nastavitve drugih ponudnikov; API se ne uporabi.");
+      }
+    } finally { rmSync(cwd, { recursive: true, force: true }); }
+  } else if (!env.OPENROUTER_API_KEY) console.log("· AI prek API ni povezan. Aplikacija lahko deluje brez njega.");
+} catch {
+  bad++;
+  console.log("✗ Izbira AI ni veljavna. Lokalni Claude ni dovoljen na Vercelu.");
 }
 if (env.SUPABASE_SERVICE_ROLE_KEY && env.SUPABASE_SERVICE_ROLE_KEY === env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
   bad++;

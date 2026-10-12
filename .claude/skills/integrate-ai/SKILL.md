@@ -19,11 +19,13 @@ When invoked, add one AI capability to a module the smallest useful way, server-
 
 ## Rules
 - **Server-only.** `OPENROUTER_API_KEY` never reaches the browser, never `NEXT_PUBLIC_`, never in code.
-- **Mock-mode is fine.** No key → `lib/ai.ts` returns canned output; the module still works (zero spend).
+- **Failures are visible.** Local auth/inference failure throws; use `aiErrorMessage` and never save a synthetic result as a successful run. Hosted OpenRouter without a key may show explicitly labelled demo output; it is not real AI.
 - **Cost + safety.** The key is capped. Small `max_tokens`, one call per action, no loops.
 - **Module boundaries hold.** AI doesn't get to cross them — read only this module's data. Run `/check-architecture` after.
 - **Model.** Default Claude via OpenRouter (`OPENROUTER_MODEL`); swap the slug for another provider.
-- **Backend (one env var, no code change).** `generate()` honours `AI_BACKEND`: leave it `openrouter` (pay-as-you-go) for deployed, or set `AI_BACKEND=local-claude` in `.env.local` to offload to your **local Claude subscription** via `claude -p` (no key, no per-token spend) while building locally. Same `generate()` call either way — never add a second AI path.
+- **Backend (one env var, no code change).** `generate()` honours `AI_BACKEND`: local defaults to `local-claude`, with a verified installed claude.ai subscription. Environment credentials/providers are removed and failed calls never fall through to API. Vercel rejects local-claude; select `openrouter` explicitly for hosted AI with a capped key and no auto top-up. Plan limits and paid usage credits are separate account settings. Same `generate()` call either way — never add a second AI path.
 - **Files (images, PDFs).** To let AI read a file (an invoice, a receipt, a photo), call `generateFromFile({ system, prompt, file: { base64, mime } })` from `lib/ai.ts`. With `local-claude` it reads the file through your subscription; for other backends it returns `undefined` and the module uses its own vision client. Worked example: `modules/invoice_ocr/lib/ocr.ts`.
 - **Isolation is built in.** `lib/ai.ts` runs `claude -p` with no user settings, no MCP servers and no tools, and the module's `system` line replaces Claude Code's own prompt — so answers never draw on (or act through) the operator's personal tools. Never add flags that loosen this.
 - End by offering: *"Ready? `/verify` it (incl. the member/owner access check)."*
+
+- Local CLI always runs in a private neutral folder. Company profile is development context; app AI uses reviewed module prompts. A declared AI_BRAIN_DIR no longer injects personal configuration.

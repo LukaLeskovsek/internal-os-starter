@@ -97,6 +97,11 @@ export const sl = {
     notFoundText: "Povezava je morda zastarela ali napačno vpisana.",
     backHome: "Nazaj domov",
     aiLimit: "Dosežena je dnevna meja klicev AI. Poskusi jutri.",
+    aiSubscription: "Za lokalni AI se prijavi v Claude Code s svojim naročniškim računom. API se ni uporabil.",
+    aiLocalUnavailable: "Lokalni Claude ni odgovoril. Preveri prijavo in omejitve naročnine. API se ni uporabil.",
+    aiHostedLocal: "Lokalni Claude na gostovani aplikaciji ni na voljo. Skrbnik naj uredi AI ali nadaljuje brez njega.",
+    aiConfiguration: "Nastavitev AI ni veljavna. Skrbnik naj jo preveri.",
+    aiBudget: "Dosežena je omejitev porabe AI. Skrbnik naj preveri proračun; zahteva se ni ponovila.",
     aiFailed: "AI ni odgovoril. Poskusi znova.",
   },
 } as const;
