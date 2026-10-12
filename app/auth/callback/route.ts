@@ -4,10 +4,12 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const requestedNext = url.searchParams.get("next") || "/home";
+  // Only a path on this same site. Resolving it is the check: "//x", "/\\x" and
+  // "https://x" all resolve to another origin and fall back to /home.
+  const requested = new URL(url.searchParams.get("next") || "/home", url.origin);
   const next =
-    requestedNext.startsWith("/") && !requestedNext.startsWith("//")
-      ? requestedNext
+    requested.origin === url.origin
+      ? requested.pathname + requested.search + requested.hash
       : "/home";
 
   if (code) {
