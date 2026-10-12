@@ -73,7 +73,9 @@ list whenever the person comes back ("nadaljuj nastavitev").
 ## Step 2 — Their own private copy on GitHub
 
 - Starting from nothing (not inside the repo yet): `gh repo create <ime> --template
-  LukaLeskovsek/internal-os-starter --private --clone`, then continue inside that folder.
+  LukaLeskovsek/internal-os-starter --private --clone`. Claude Code reads this repo's CLAUDE.md and skills only
+  when started inside it, so tell them: "Zapri Claude Code (`/exit`), napiši `cd <ime>` in `claude`,
+  nato: Nastavi mi internal-os."
 - Inside a clone of the template (origin is `LukaLeskovsek/internal-os-starter`): ask for a name,
   then `git remote rename origin template` and `gh repo create <ime> --private --source=. --remote=origin --push`.
 - Check: `gh repo view --json visibility` → `PRIVATE`.
