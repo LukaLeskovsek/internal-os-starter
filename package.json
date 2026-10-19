@@ -12,7 +12,9 @@
     "env:check": "node scripts/env-check.mjs",
     "seed:admin": "node --env-file-if-exists=.env.local scripts/seed-admin.mjs",
     "vercel:env": "node --env-file-if-exists=.env.local scripts/vercel-env.mjs",
-    "audit:security": "node scripts/audit-security.mjs"
+    "audit:security": "node scripts/audit-security.mjs",
+    "test:local-ai": "node --test tests/local-ai.test.mjs",
+    "test:invoice": "python3 tests/invoice-acceptance/run.py"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

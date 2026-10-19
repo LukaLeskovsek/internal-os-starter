@@ -37,3 +37,7 @@ next-env.d.ts
 
 # Supabase CLI local cache
 supabase/.temp/
+
+# Isolated acceptance reports (never credentials or deployments).
+/artifacts/
+__pycache__/

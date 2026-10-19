@@ -5,17 +5,23 @@
 import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useActionToast } from "@/hooks/use-action-toast";
-import { setInvoiceStatus } from "../actions";
-import { t, type InvoiceStatus } from "../strings";
+import { reopenInvoice, undoInvoice } from "../actions";
+import { t } from "../strings";
 
-export function ReopenButton({ id, status }: { id: string; status: InvoiceStatus }) {
+export function ReopenButton({ id, revision }: { id: string; revision: number }) {
   const run = useActionToast();
   return (
     <Button
+      type="button"
       variant="ghost"
       size="sm"
       disabled={run.pending}
-      onClick={() => run(() => setInvoiceStatus(id, "pending"), { undo: () => setInvoiceStatus(id, status) })}
+      onClick={() => {
+        const requestId = crypto.randomUUID();
+        run(() => reopenInvoice(id, revision, requestId), {
+          undo: (res) => undoInvoice(id, res.data!.revision, res.data!.requestId, crypto.randomUUID()),
+        });
+      }}
     >
       <RotateCcw />
       <span className="max-sm:sr-only">{t.done.reopen}</span>

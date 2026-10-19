@@ -1,0 +1,35 @@
+name: Protected invoice commands
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm run test:local-ai
+      - run: docker pull postgres:17-bookworm && docker pull postgrest/postgrest:v12.2.3
+      - run: npm run test:invoice -- --out artifacts/invoice-ci
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_SUPABASE_URL: https://example.invalid
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: local-build-placeholder
+          AI_BACKEND: openrouter
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: invoice-command-evidence
+          path: artifacts/invoice-ci
+          if-no-files-found: error
