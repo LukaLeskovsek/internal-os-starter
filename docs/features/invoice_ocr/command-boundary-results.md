@@ -93,8 +93,8 @@ Preparatory run 02 was not source-bound and is diagnostic only.
 The source digest covers invoice module files, core migrations and invoice acceptance
 files. Image identities are in the raw result. Product files in the clean build
 checkout were compared byte-for-byte with the repository; the build used explicit
-nonproduction configuration and no project environment files. The only subsequent
-source change was the independently qualified test-controller inventory guard.
+nonproduction configuration and no project environment files. Subsequent edits were confined to the independently qualified test controller
+and its reproduction README.
 
 ## What this supports and what remains
 
