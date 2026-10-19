@@ -22,9 +22,10 @@ import { useHotkey } from "@/hooks/use-hotkey";
 import { sl } from "@/lib/i18n/sl";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { decideInvoice, setInvoiceStatus } from "../actions";
+import { decideInvoice, undoInvoice } from "../actions";
 import { amountInput, money, parseAmount, sumMatches } from "../lib/invoice-format";
 import { t, type InvoiceStatus } from "../strings";
+import { ReopenButton } from "./reopen-button";
 import { useReviewSession } from "./review-nav";
 
 const BASE = "/m/invoice_ocr";
@@ -33,6 +34,7 @@ const FORM_ID = "invoice-review";
 export type ReviewInvoice = {
   id: string;
   status: InvoiceStatus;
+  revision: number;
   vendor: string | null;
   invoice_number: string | null;
   currency: string | null;
@@ -78,11 +80,8 @@ const CHECKED: (keyof Values)[] = [
   "total_amount",
 ];
 
-export function ReviewForm({ invoice, lines }: { invoice: ReviewInvoice; lines: ReviewLine[] }) {
-  const router = useRouter();
-  const commentRef = useRef<HTMLTextAreaElement>(null);
-  const { rejecting, setRejecting, setDirty } = useReviewSession();
-  const [initial] = useState<Values>(() => ({
+function invoiceValues(invoice: ReviewInvoice): Values {
+  return {
     vendor: invoice.vendor ?? "",
     invoice_number: invoice.invoice_number ?? "",
     currency: invoice.currency ?? "",
@@ -92,8 +91,21 @@ export function ReviewForm({ invoice, lines }: { invoice: ReviewInvoice; lines: 
     tax_amount: amountInput(invoice.tax_amount),
     total_amount: amountInput(invoice.total_amount),
     comment: invoice.comment ?? "",
-  }));
+  };
+}
+
+
+export function ReviewForm({ invoice, lines, requestId }: { invoice: ReviewInvoice; lines: ReviewLine[]; requestId: string }) {
+  const router = useRouter();
+  const commentRef = useRef<HTMLTextAreaElement>(null);
+  const { rejecting, setRejecting, setDirty } = useReviewSession();
+  const [initial, setInitial] = useState<Values>(() => invoiceValues(invoice));
   const [v, setV] = useState<Values>(initial);
+  useEffect(() => {
+    const refreshed = invoiceValues(invoice);
+    setInitial(refreshed);
+    setV(refreshed);
+  }, [invoice]);
 
   // Tell the nav whether J/K would throw corrections away.
   const dirty = (Object.keys(initial) as (keyof Values)[]).some((k) => v[k] !== initial[k]);
@@ -107,6 +119,7 @@ export function ReviewForm({ invoice, lines }: { invoice: ReviewInvoice; lines: 
       id={k}
       name={k}
       value={v[k]}
+      readOnly={invoice.status !== "pending"}
       onChange={set(k)}
       aria-describedby={warn(k) ? "review-empty-hint" : undefined}
       {...extra}
@@ -154,7 +167,8 @@ export function ReviewForm({ invoice, lines }: { invoice: ReviewInvoice; lines: 
           action: {
             label: sl.common.undo,
             onClick: async () => {
-              const r = await setInvoiceStatus(invoice.id, invoice.status);
+              if (!res.data) return;
+              const r = await undoInvoice(invoice.id, res.data.revision, res.data.requestId, crypto.randomUUID());
               if (!r.ok) return void toast.error(r.error);
               router.replace(`${BASE}?id=${invoice.id}`);
             },
@@ -166,7 +180,9 @@ export function ReviewForm({ invoice, lines }: { invoice: ReviewInvoice; lines: 
       }}
     >
       <input type="hidden" name="id" value={invoice.id} />
-      <Hotkeys rejecting={rejecting} onApprove={() => submit("approve")} onReject={() => (rejecting ? submit("reject") : setRejecting(true))} />
+      <input type="hidden" name="revision" value={invoice.revision} />
+      <input type="hidden" name="request_id" value={requestId} />
+      {invoice.status === "pending" ? <Hotkeys rejecting={rejecting} onApprove={() => submit("approve")} onReject={() => (rejecting ? submit("reject") : setRejecting(true))} /> : null}
 
       {anyEmpty ? (
         <p id="review-empty-hint" className="flex items-start gap-2 rounded-2xl bg-warning/15 px-4 py-3 text-sm">
@@ -263,6 +279,7 @@ export function ReviewForm({ invoice, lines }: { invoice: ReviewInvoice; lines: 
           rows={2}
           maxLength={2000}
           value={v.comment}
+          readOnly={invoice.status !== "pending"}
           onChange={set("comment")}
           placeholder={t.review.commentPlaceholder}
         />
@@ -292,7 +309,7 @@ export function ReviewForm({ invoice, lines }: { invoice: ReviewInvoice; lines: 
           </div>
         ) : null}
         <div className="flex gap-2">
-          {rejecting ? (
+          {invoice.status !== "pending" ? <ReopenButton id={invoice.id} revision={invoice.revision} /> : rejecting ? (
             <>
               <Button type="button" variant="ghost" size="icon" onClick={() => setRejecting(false)} aria-label={t.review.rejectCancel}>
                 <X />

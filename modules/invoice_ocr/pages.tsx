@@ -53,12 +53,13 @@ type ListInvoice = {
   currency: string | null;
   total_amount: number | null;
   status: InvoiceStatus;
+  revision: number;
   extracted_mock: boolean;
   reviewed_at: string | null;
   comment: string | null;
 };
 const LIST_COLS =
-  "id, vendor, invoice_number, issue_date, due_date, currency, total_amount, status, extracted_mock, reviewed_at, comment";
+  "id, vendor, invoice_number, issue_date, due_date, currency, total_amount, status, extracted_mock, reviewed_at, comment, revision";
 
 export async function InvoiceOcrModule({ searchParams }: ModuleProps) {
   if (searchParams.id) return <ReviewPage id={searchParams.id} />;
@@ -270,7 +271,7 @@ function DoneList({ rows, q }: { rows: ListInvoice[]; q: string }) {
                       <StatusBadge tone={badge.tone}>{badge.label}</StatusBadge>
                     </div>
                   }
-                  actions={<ReopenButton id={inv.id} status={inv.status} />}
+                  actions={<ReopenButton id={inv.id} revision={inv.revision} />}
                 />
               );
             })}
@@ -301,7 +302,7 @@ async function ReviewPage({ id }: { id: string }) {
     ? await supabase
         .from(TABLE)
         .select(
-          "id, file_path, file_mime, vendor, invoice_number, issue_date, due_date, currency, net_amount, tax_amount, total_amount, status, extracted_mock, reviewed_at, comment",
+          "id, file_path, file_mime, vendor, invoice_number, issue_date, due_date, currency, net_amount, tax_amount, total_amount, status, extracted_mock, reviewed_at, comment, revision",
         )
         .eq("id", id)
         .maybeSingle()
@@ -432,7 +433,7 @@ async function ReviewPage({ id }: { id: string }) {
           </section>
 
           {/* key: a fresh form (and fresh field state) for every invoice J/K or A lands on. */}
-          <ReviewForm key={inv.id} invoice={inv} lines={lines} />
+          <ReviewForm key={inv.id} invoice={inv} lines={lines} requestId={crypto.randomUUID()} />
         </div>
       </div>
     </ReviewSession>

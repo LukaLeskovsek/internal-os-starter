@@ -124,6 +124,11 @@ export const t = {
 
   errors: {
     badId: "Neveljaven račun.",
+    invalidCommand: "Spremembe niso veljavne. Osveži račun in poskusi znova.",
+    stale: "Račun je bil medtem spremenjen. Osveži stran in preveri podatke.",
+    requestConflict: "Ta zahteva je že bila uporabljena za drugo spremembo. Osveži stran.",
+    transition: "Ta sprememba ni več na voljo. Osveži račun.",
+    approvalFields: "Za potrditev vpiši dobavitelja in skupni znesek.",
     notFound: "Računa ni bilo mogoče najti.",
     needVendor: "Vpiši dobavitelja.",
     needTotal: "Vpiši skupni znesek.",

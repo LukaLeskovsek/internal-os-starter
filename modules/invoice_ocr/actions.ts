@@ -4,11 +4,11 @@
 //
 //   uploadInvoice(formData)        one file in → stored, read by AI, queued as pending
 //   decideInvoice(prev, formData)  corrections + approve/reject in ONE call → { nextId }
-//   setInvoiceStatus(id, status)   typed button action: "Vrni v pregled" and every undo
+//   reopenInvoice / undoInvoice    explicit, revision-bound commands
 //
 // Every action starts with moduleContext() (signed in + granted + module on) and
 // returns an ActionResult the client turns into a toast. No redirects for feedback.
-// RLS ("owner all") scopes every query to the signed-in user's own rows.
+// Read policies scope rows to an active, granted owner; all writes are commands.
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { moduleContext } from "@/lib/module-context";
@@ -19,7 +19,8 @@ import { sl } from "@/lib/i18n/sl";
 import { extractInvoice, emptyInvoiceFields, type InvoiceFields, type LineItem } from "./lib/ocr";
 import { parseAmount } from "./lib/invoice-format";
 import { MAX_UPLOAD_BYTES, ACCEPTED_TYPES } from "./constants";
-import { t, type InvoiceStatus } from "./strings";
+import { executeInvoiceCommand, type InvoiceCommandResult } from "./lib/commands";
+import { t } from "./strings";
 
 const MODULE = "invoice_ocr";
 const BASE = `/m/${MODULE}`;
@@ -85,50 +86,24 @@ export async function uploadInvoice(
     return fail(aiErrorMessage(e));
   }
 
-  // 3) The invoice header row, queued for review.
-  const d = extracted.data;
-  const { data: inserted, error } = await supabase
-    .from("invoice_ocr_invoices")
-    .insert({
-      user_id: user.id,
-      file_path: path,
-      file_mime: file.type,
-      vendor: d.vendor,
-      invoice_number: d.invoice_number,
-      issue_date: d.issue_date,
-      due_date: d.due_date,
-      currency: d.currency,
-      net_amount: d.net_amount,
-      tax_amount: d.tax_amount,
-      total_amount: d.total_amount,
-      raw_json: { model_output: extracted.raw },
-      extracted_mock: extracted.mock,
-      status: "pending",
-    })
-    .select("id")
-    .single();
-  if (error || !inserted) {
-    console.error("invoice_ocr insert failed", error);
-    await supabase.storage.from(MODULE).remove([path]); // don't leave the file behind
-    return fail(t.upload.saveFailed);
-  }
-
-  // 4) Line items: one child row per postavka. The header is saved already, so a
-  //    hiccup here is logged, not shown: the invoice is still reviewable.
-  if (extracted.lineItems.length) {
-    const rows = extracted.lineItems.map((li, i) => ({
-      invoice_id: inserted.id,
-      user_id: user.id,
-      line_no: i + 1,
-      ...li,
-    }));
-    const { error: lineErr } = await supabase.from("invoice_ocr_line_items").insert(rows);
-    if (lineErr) console.error("invoice_ocr line items insert failed", lineErr);
+  // Header and every supplied line commit together through the protected command.
+  const result = await executeInvoiceCommand(supabase, {
+    requestId: crypto.randomUUID(), invoiceId: crypto.randomUUID(), revision: 0,
+    command: "import", payload: {
+      ...extracted.data, file_path: path, file_mime: file.type,
+      raw_json: { model_output: extracted.raw }, extracted_mock: extracted.mock,
+      line_items: extracted.lineItems,
+    },
+  });
+  if (!result.ok) {
+    const cleanup = await supabase.storage.from(MODULE).remove([path]);
+    if (cleanup.error) console.error("invoice_ocr original cleanup failed");
+    return result;
   }
 
   revalidatePath(BASE);
   // No message: the client shows one summary toast for the whole batch.
-  return ok(undefined, { id: inserted.id as string, mock: extracted.mock });
+  return ok(undefined, { id: result.data!.id, mock: extracted.mock });
 }
 
 // ------------------------------------------------------------------ decide
@@ -161,6 +136,8 @@ const date = z
 const DecideSchema = z
   .object({
     id: z.uuid(t.errors.badId),
+    revision: z.coerce.number().int().nonnegative(),
+    request_id: z.uuid(t.errors.badId),
     decision: z.enum(["approve", "reject"]),
     vendor: text(200),
     invoice_number: text(100),
@@ -196,9 +173,9 @@ const DecideSchema = z
  * client can router.replace() straight to it. nextId null = the queue is empty.
  */
 export async function decideInvoice(
-  _prev: ActionResult<{ nextId: string | null }>,
+  _prev: ActionResult<InvoiceCommandResult & { nextId: string | null }>,
   formData: FormData,
-): Promise<ActionResult<{ nextId: string | null }>> {
+): Promise<ActionResult<InvoiceCommandResult & { nextId: string | null }>> {
   const ctx = await moduleContext(MODULE);
   if (!ctx.ok) return ctx;
   const { supabase } = ctx;
@@ -209,6 +186,8 @@ export async function decideInvoice(
   };
   const parsed = DecideSchema.safeParse({
     id: field("id"),
+    revision: field("revision"),
+    request_id: field("request_id"),
     decision: field("decision"),
     vendor: field("vendor"),
     invoice_number: field("invoice_number"),
@@ -221,23 +200,13 @@ export async function decideInvoice(
     comment: field("comment"),
   });
   if (!parsed.success) return fromZod(parsed.error);
-  const { id, decision, ...fields } = parsed.data;
-  const status: InvoiceStatus = decision === "approve" ? "approved" : "rejected";
+  const { id, decision, revision, request_id, ...fields } = parsed.data;
+  const result = await executeInvoiceCommand(supabase, {
+    invoiceId: id, revision, requestId: request_id, command: decision, payload: fields,
+  });
+  if (!result.ok) return result;
 
-  const { data: saved, error } = await supabase
-    .from("invoice_ocr_invoices")
-    .update({ ...fields, status, reviewed_at: new Date().toISOString() })
-    .eq("id", id)
-    .select("created_at, vendor")
-    .maybeSingle();
-  if (error) {
-    console.error("invoice_ocr decide failed", error);
-    return fail(sl.errors.generic);
-  }
-  if (!saved) return fail(t.errors.notFound);
-
-  // Next in line: the queue runs oldest first, so take the next pending invoice after
-  // this one, or wrap to the oldest if this was the last.
+  // Continue with the oldest invoice still pending after the decision.
   const { data: queue } = await supabase
     .from("invoice_ocr_invoices")
     .select("id, created_at")
@@ -245,49 +214,38 @@ export async function decideInvoice(
     .order("created_at", { ascending: true })
     .limit(500);
   const pending = queue ?? [];
-  const next = pending.find((r) => r.created_at > saved.created_at) ?? pending[0] ?? null;
+  const next = pending[0] ?? null;
 
   revalidatePath(BASE);
-  const vendor = (saved.vendor as string | null) ?? t.queue.unknownVendor;
+  const vendor = fields.vendor ?? t.queue.unknownVendor;
   return ok(
     decision === "approve" ? t.review.approved(vendor) : t.review.rejected(vendor),
-    { nextId: (next?.id as string | undefined) ?? null },
+    { ...result.data!, nextId: (next?.id as string | undefined) ?? null },
   );
 }
 
-// ------------------------------------------------------------------ status
+// ------------------------------------------------------------------ explicit transitions
 
-const StatusSchema = z.object({
-  id: z.uuid(t.errors.badId),
-  status: z.enum(["pending", "approved", "rejected"]),
-});
-
-/**
- * Typed button action. "Vrni v pregled" calls it with "pending"; the undo on that
- * toast (and on the review screen's decision toast) calls it with the old status.
- * The comment and corrected fields stay as they are.
- */
-export async function setInvoiceStatus(id: string, status: InvoiceStatus): Promise<ActionResult> {
+export async function reopenInvoice(
+  id: string, revision: number, requestId: string,
+): Promise<ActionResult<InvoiceCommandResult>> {
   const ctx = await moduleContext(MODULE);
   if (!ctx.ok) return ctx;
-  const parsed = StatusSchema.safeParse({ id, status });
-  if (!parsed.success) return fromZod(parsed.error);
+  const result = await executeInvoiceCommand(ctx.supabase, {
+    invoiceId: id, revision, requestId, command: "reopen", payload: {},
+  });
+  if (result.ok) revalidatePath(BASE);
+  return result.ok ? ok(t.done.reopened, result.data) : result;
+}
 
-  const { data, error } = await ctx.supabase
-    .from("invoice_ocr_invoices")
-    .update({
-      status: parsed.data.status,
-      reviewed_at: parsed.data.status === "pending" ? null : new Date().toISOString(),
-    })
-    .eq("id", parsed.data.id)
-    .select("id")
-    .maybeSingle();
-  if (error) {
-    console.error("invoice_ocr set status failed", error);
-    return fail(sl.errors.generic);
-  }
-  if (!data) return fail(t.errors.notFound);
-
-  revalidatePath(BASE);
-  return ok(parsed.data.status === "pending" ? t.done.reopened : sl.common.saved);
+export async function undoInvoice(
+  id: string, revision: number, previousRequestId: string, requestId: string,
+): Promise<ActionResult<InvoiceCommandResult>> {
+  const ctx = await moduleContext(MODULE);
+  if (!ctx.ok) return ctx;
+  const result = await executeInvoiceCommand(ctx.supabase, {
+    invoiceId: id, revision, requestId, command: "undo", payload: { request_id: previousRequestId },
+  });
+  if (result.ok) revalidatePath(BASE);
+  return result.ok ? ok(sl.common.saved, result.data) : result;
 }
