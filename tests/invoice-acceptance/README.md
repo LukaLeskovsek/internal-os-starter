@@ -10,7 +10,10 @@ Choose a new output directory every time. Reports are ignored, never overwritten
 The controller creates one isolated Docker network, a PostgreSQL 17 database and a
 versioned PostgREST container bound only to loopback. It builds minimal Supabase
 auth/storage fixture schemas, applies the actual core and invoice migrations,
-checks a legacy-data upgrade and applies the new migration twice.
+checks a legacy-data upgrade and applies the new migration twice. Its frozen invoice
+migration inventory fails closed when another migration appears, so a later file
+cannot silently escape the upgrade and mutation qualification. Extend that plan
+explicitly when introducing another invoice migration.
 
 The HTTP/raw-SQL oracle imports no product validation or command helpers. Tests
 check business outcomes, authority, direct table writes, revision/replay,

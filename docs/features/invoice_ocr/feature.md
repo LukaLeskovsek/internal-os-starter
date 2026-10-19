@@ -1,11 +1,11 @@
 ---
 module: invoice_ocr
 title: Računi
-status: planned
+status: verified
 pattern: pregledna-vrsta
 created: 2026-10-11
 by: Luka Leskovšek
-verified_runs: 0
+verified_runs: 1
 live_url:
 ---
 
@@ -33,7 +33,7 @@ izvoženi za plačilo.
 **Klikov na račun:** 1 tipka (prej ~6 klikov).
 
 ## Data stored
-`invoice_ocr_invoices` (owner-all RLS): datoteka v shrambi (mapa uporabnika), dobavitelj,
+`invoice_ocr_invoices` (branje z RLS glede na trenutni dostop; pisanje samo prek ukazov): datoteka v shrambi (mapa uporabnika), dobavitelj,
 številka, datumi, valuta, zneski, status `pending/approved/rejected`, komentar, surovi
 izpis modela. `invoice_ocr_line_items`: postavke računa.
 
@@ -60,3 +60,9 @@ Povezava z računovodskim programom, plačilni nalogi, odobritev v več korakih.
 Accepted plan: [command boundary](command-boundary-plan.md). The existing flow and
 self-approval stay; PostgreSQL owns decisions, atomic imports, revision checks,
 retries and audit. Work is local only until a separate hosted rollout is approved.
+
+## Local verification (2026-10-19)
+
+18/18 HTTP/database groups, 6/6 action integration groups, 19/19 AI regressions,
+types/lint/build and local browser flow passed. Identity/storage were synthetic local
+fixtures; no hosted deployment. [Evidence and limits](command-boundary-results.md).

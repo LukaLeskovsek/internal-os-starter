@@ -49,6 +49,10 @@ class Stack:
     def sql(self, sql):
         return run(DOCKER, 'exec', '-i', '-e', 'PGPASSWORD='+self.password, self.db, 'psql', '-h', '127.0.0.1', '-XAt', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', data=sql)
     def setup(self):
+        expected=['0001_invoice_ocr.sql','0002_invoice_ocr_comment.sql','0003_invoice_ocr_line_items.sql','0004_invoice_ocr_commands.sql']
+        actual=sorted(p.name for p in (ROOT/'modules/invoice_ocr/db').glob('*.sql'))
+        if actual!=expected:
+            raise RuntimeError('Invoice migration inventory changed; extend the upgrade/mutation qualification before admission')
         run(DOCKER, 'network', 'create', self.name)
         run(DOCKER, 'run', '-d', '--name', self.db, '--network', self.name,
             '-e', 'POSTGRES_PASSWORD='+self.password, 'postgres:17-bookworm')
