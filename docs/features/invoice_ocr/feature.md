@@ -1,7 +1,7 @@
 ---
 module: invoice_ocr
 title: Računi
-status: built
+status: planned
 pattern: pregledna-vrsta
 created: 2026-10-11
 by: Luka Leskovšek
@@ -54,3 +54,9 @@ Modul `invoice_ocr` se podeli v Administraciji. Vsak vidi le svoje račune.
 
 ## Out of scope
 Povezava z računovodskim programom, plačilni nalogi, odobritev v več korakih.
+
+## Protected command slice (2026-10-19)
+
+Accepted plan: [command boundary](command-boundary-plan.md). The existing flow and
+self-approval stay; PostgreSQL owns decisions, atomic imports, revision checks,
+retries and audit. Work is local only until a separate hosted rollout is approved.
