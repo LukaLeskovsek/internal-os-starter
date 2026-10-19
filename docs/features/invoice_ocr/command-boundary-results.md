@@ -2,8 +2,9 @@
 
 The existing invoice review flow now uses mandatory PostgreSQL commands within the
 existing Next.js/Supabase deployment. Local acceptance and browser verification
-passed. Nothing was pushed, deployed or applied to hosted Supabase. The CI workflow
-is prepared but has not run remotely.
+passed. At completion of local qualification, nothing had been pushed or deployed
+and no migration had been applied to hosted Supabase. Subsequent publication and
+remote CI status are recorded by the pull request checks.
 
 The [accepted plan](command-boundary-plan.md) was committed first as `b6b0457`.
 The implementation is `c0d97bfe8ca9630cc56e4fcda548b29e9caf1680` on `codex/invoice-command-boundary`; this evidence
